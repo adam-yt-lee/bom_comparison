@@ -442,31 +442,6 @@
             text-decoration: underline;
         }
 
-        .detail-filter-bar {
-            display: flex;
-            align-items: center;
-            gap: var(--space-xs);
-            margin-bottom: var(--space-xs);
-        }
-        .detail-filter-bar .filter-label {
-            font-size: 13px;
-            color: var(--primary-dark);
-            font-weight: 600;
-        }
-        .detail-filter-bar .clear-filter {
-            font-size: 11px;
-            color: var(--text-muted);
-            background: none;
-            border: 1px solid var(--primary-pale);
-            border-radius: 4px;
-            padding: 2px 8px;
-            cursor: pointer;
-            transition: var(--transition);
-        }
-        .detail-filter-bar .clear-filter:hover {
-            background: var(--primary-pale);
-            color: var(--primary-dark);
-        }
         .detail-empty-hint {
             text-align: center;
             padding: var(--space-md);
@@ -625,7 +600,7 @@
                     <div class="section-title" style="display:flex; align-items:center; gap:var(--space-sm);">
                         <span data-i18n="detailTitle">All Changes (Detail)</span>
                         <span id="detailFilterInfo" class="filter-label" style="font-size:13px; font-weight:400; color:var(--primary-accent);"></span>
-                        <button id="clearFilterBtn" class="clear-filter" style="display:none; margin-left:auto;" onclick="clearDetailFilter()">✕ Clear</button>
+                        <button id="clearFilterBtn" class="btn btn-option" style="display:none; margin-left:auto; font-size:11px; padding:4px 10px;" onclick="clearDetailFilter()">✕ Clear</button>
                     </div>
                     <div id="detailContent">
                         <div class="detail-empty-hint" id="detailEmptyHint" data-i18n="detailHint">Click a value in the summary table above to view details</div>
