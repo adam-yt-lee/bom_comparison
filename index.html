@@ -1075,8 +1075,12 @@ function renderDetailFromFilter() {
     const fm = detailFilter.mtlGroup;
     const hasFilter = fp || fm;
 
-    const allCols = ['Project', 'Product', 'MtlGroup', 'Material', 'Desc/Spec',
-                  'Prior_Unit Cost', 'Curr_Unit Cost', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff'];
+    const isMtlGroupOnly = fm && !fp;
+    const allCols = isMtlGroupOnly
+        ? ['Project', 'Products', 'Material', 'Desc/Spec',
+           'Prior_Unit Cost', 'Curr_Unit Cost', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff']
+        : ['Project', 'Product', 'MtlGroup', 'Material', 'Desc/Spec',
+           'Prior_Unit Cost', 'Curr_Unit Cost', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff'];
     // Hide columns that are active filters
     const hideCols = new Set();
     if (fp) hideCols.add('Product');
@@ -1093,18 +1097,26 @@ function renderDetailFromFilter() {
     });
 
     // Dedup when filtering by MtlGroup only (no product): collapse rows with same Material + same Usage
+    // Merge Project (textjoin) and collect affected Products
     if (fm && !fp) {
-        const seen = {};
-        const deduped = [];
+        const groups = {};
+        const order = [];
         for (const r of rows) {
             const key = r.Material + '|' + r['Prior_Unit Cost'] + '|' + r['Curr_Unit Cost']
                       + '|' + r['Prior_Ttl. Usage'] + '|' + r['Curr_Ttl. Usage'];
-            if (!seen[key]) {
-                seen[key] = true;
-                deduped.push(r);
+            if (!groups[key]) {
+                groups[key] = { ...r, _projects: new Set(), _products: new Set() };
+                order.push(key);
             }
+            if (r.Project) groups[key]._projects.add(r.Project);
+            if (r.Product) groups[key]._products.add(r.Product);
         }
-        rows = deduped;
+        rows = order.map(k => {
+            const g = groups[k];
+            g.Project = [...g._projects].join('\n');
+            g._affectedProducts = [...g._products].join(', ');
+            return g;
+        });
     }
 
     // Pre-compute rowspans for merge columns
@@ -1134,7 +1146,10 @@ function renderDetailFromFilter() {
             if (mergeCols.includes(c)) {
                 if (spans[c][i] === 0) continue;
                 const rs = spans[c][i] > 1 ? ` rowspan="${spans[c][i]}" style="vertical-align:top;"` : '';
-                html += `<td${rs}>${row[c] ?? ''}</td>`;
+                const val = (row[c] ?? '').replace(/\n/g, '<br>');
+                html += `<td${rs} style="white-space:pre-line;vertical-align:top;">${val}</td>`;
+            } else if (c === 'Products') {
+                html += `<td style="font-size:11px;color:var(--text-secondary);">${row._affectedProducts ?? ''}</td>`;
             } else if (numCols.has(c)) {
                 const v = row[c] ?? 0;
                 html += `<td class="${numClass(c === 'AmtDiff' ? v : 0)}">${fmtNum(v)}</td>`;
