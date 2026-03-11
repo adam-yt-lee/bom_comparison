@@ -281,6 +281,24 @@
         .upload-box.loaded {
             border-color: var(--primary);
             background: var(--primary-pale);
+            padding: var(--space-xs) var(--space-sm);
+        }
+
+        .upload-box.loaded .upload-icon,
+        .upload-box.loaded .upload-hint {
+            display: none;
+        }
+
+        .upload-box.loaded .upload-label {
+            font-size: 12px;
+            margin-bottom: 0;
+            display: inline;
+        }
+
+        .upload-box.loaded .upload-filename {
+            display: inline;
+            margin-top: 0;
+            margin-left: 6px;
         }
 
         .upload-box input[type="file"] {
@@ -413,65 +431,39 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* ========================================
-           11. Tab 切換
-        ======================================== */
-        .tab-group {
-            display: flex;
-            gap: 2px;
-            margin-bottom: var(--space-md);
-            background: var(--primary-pale);
-            border-radius: var(--radius-sm);
-            padding: 3px;
-        }
-
-        .tab-btn {
-            flex: 1;
-            padding: 10px 16px;
-            border: none;
-            background: transparent;
-            color: var(--primary-dark);
-            font-weight: 600;
-            font-size: 13px;
-            cursor: pointer;
-            border-radius: 6px;
-            transition: var(--transition);
-        }
-
-        .tab-btn:hover { background: rgba(255,255,255,0.5); }
-        .tab-btn.active { background: white; box-shadow: var(--shadow-sm); }
-
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
+        /* (Tabs removed - both views shown inline) */
 
         /* ========================================
            12. Summary 統計
         ======================================== */
         .stats-row {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: var(--space-sm);
-            margin-bottom: var(--space-md);
+            grid-template-columns: repeat(5, 1fr);
+            gap: var(--space-xs);
+            margin-bottom: var(--space-sm);
         }
 
         .stat-card {
             background: white;
             border: 1px solid var(--primary-pale);
-            border-radius: var(--radius-sm);
-            padding: var(--space-sm) var(--space-md);
+            border-radius: 6px;
+            padding: 4px var(--space-sm);
             text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
         }
 
         .stat-value {
-            font-size: 22px;
+            font-size: 15px;
             font-weight: 700;
             color: var(--primary-dark);
         }
 
         .stat-label {
-            font-size: 12px;
+            font-size: 11px;
             color: var(--text-muted);
-            margin-top: 2px;
         }
 
         /* ========================================
@@ -552,9 +544,12 @@
             </div>
 
             <!-- Action Buttons -->
-            <div class="btn-group">
+            <div class="btn-group" style="align-items: center;">
                 <button class="btn btn-primary" id="compareBtn" onclick="runComparison()" disabled>
                     <span data-i18n="compare">Compare</span>
+                </button>
+                <button class="btn btn-option" onclick="downloadTemplate()" style="font-size:11px; padding:4px 10px; margin-left:auto;" title="Download template with required columns">
+                    <span data-i18n="downloadTemplate">Template (.xlsx)</span>
                 </button>
             </div>
 
@@ -570,33 +565,23 @@
                 <!-- Stats -->
                 <div class="stats-row" id="statsRow"></div>
 
-                <!-- Tabs -->
-                <div class="tab-group">
-                    <button class="tab-btn active" onclick="switchTab('all')" data-i18n="detailTab">Detail (All Changes)</button>
-                    <button class="tab-btn" onclick="switchTab('sum')" data-i18n="summaryTab">Summary (By MtlGroup)</button>
-                </div>
-
                 <!-- Download Buttons -->
-                <div class="btn-group mb-md">
-                    <button class="btn btn-secondary" onclick="downloadExcel('all')">
-                        <span data-i18n="downloadDetail">Download Detail (.xlsx)</span>
-                    </button>
-                    <button class="btn btn-secondary" onclick="downloadExcel('sum')">
+                <div class="btn-group mb-md" style="justify-content: flex-end;">
+                    <button class="btn btn-option" onclick="downloadExcel('sum')" style="font-size:12px; padding:4px 12px;">
                         <span data-i18n="downloadSummary">Download Summary (.xlsx)</span>
                     </button>
-                </div>
-
-                <!-- Detail Table -->
-                <div class="tab-content active" id="tab-all">
-                    <div class="section-title" data-i18n="detailTitle">BOM Comparison - All Changes</div>
-                    <div class="table-wrapper" id="tableAll"></div>
+                    <button class="btn btn-option" onclick="downloadExcel('all')" style="font-size:12px; padding:4px 12px;">
+                        <span data-i18n="downloadDetail">Download Detail (.xlsx)</span>
+                    </button>
                 </div>
 
                 <!-- Summary Table -->
-                <div class="tab-content" id="tab-sum">
-                    <div class="section-title" data-i18n="summaryTitle">BOM Comparison - Summary by MtlGroup</div>
-                    <div class="table-wrapper" id="tableSum"></div>
-                </div>
+                <div class="section-title" data-i18n="summaryTitle">Summary by MtlGroup</div>
+                <div class="table-wrapper" id="tableSum" style="max-height:300px;"></div>
+
+                <!-- Detail Table -->
+                <div class="section-title" data-i18n="detailTitle" style="margin-top:var(--space-sm);">All Changes (Detail)</div>
+                <div class="table-wrapper" id="tableAll"></div>
             </div>
 
         </main>
@@ -629,12 +614,11 @@ const i18n = {
         priorBom: 'Prior BOM',
         uploadHint: 'Click or drag .xlsx file here',
         compare: 'Compare',
-        detailTab: 'Detail (All Changes)',
-        summaryTab: 'Summary (By MtlGroup)',
-        downloadDetail: 'Download Detail (.xlsx)',
-        downloadSummary: 'Download Summary (.xlsx)',
-        detailTitle: 'BOM Comparison - All Changes',
-        summaryTitle: 'BOM Comparison - Summary by MtlGroup',
+        downloadDetail: 'Detail (.xlsx)',
+        downloadSummary: 'Summary (.xlsx)',
+        downloadTemplate: 'Template (.xlsx)',
+        detailTitle: 'All Changes (Detail)',
+        summaryTitle: 'Summary by MtlGroup',
         processing: 'Processing comparison...',
         done: 'Comparison complete!',
         errorSheet: 'Cannot find "BOM Data" sheet in the file.',
@@ -651,12 +635,11 @@ const i18n = {
         priorBom: '前期 BOM (Prior)',
         uploadHint: '點擊或拖曳 .xlsx 檔案至此',
         compare: '開始比對',
-        detailTab: '明細 (所有變動)',
-        summaryTab: '彙總 (依 MtlGroup)',
-        downloadDetail: '下載明細 (.xlsx)',
-        downloadSummary: '下載彙總 (.xlsx)',
-        detailTitle: 'BOM 比對 - 所有變動明細',
-        summaryTitle: 'BOM 比對 - MtlGroup 彙總',
+        downloadDetail: '明細 (.xlsx)',
+        downloadSummary: '彙總 (.xlsx)',
+        downloadTemplate: '範本 (.xlsx)',
+        detailTitle: '所有變動明細',
+        summaryTitle: 'MtlGroup 彙總',
         processing: '比對處理中...',
         done: '比對完成！',
         errorSheet: '檔案中找不到 "BOM Data" 工作表。',
@@ -942,24 +925,24 @@ function renderStats() {
 
     document.getElementById('statsRow').innerHTML = `
         <div class="stat-card">
-            <div class="stat-value">${comparisonResult.length}</div>
             <div class="stat-label">${t('totalChanges')}</div>
+            <div class="stat-value">${comparisonResult.length}</div>
         </div>
         <div class="stat-card">
-            <div class="stat-value ${amtClass}">${fmtAmt}</div>
             <div class="stat-label">${t('totalAmtDiff')}</div>
+            <div class="stat-value ${amtClass}">${fmtAmt}</div>
         </div>
         <div class="stat-card">
-            <div class="stat-value">${newItems}</div>
             <div class="stat-label">${t('newItems')}</div>
+            <div class="stat-value">${newItems}</div>
         </div>
         <div class="stat-card">
-            <div class="stat-value">${removedItems}</div>
             <div class="stat-label">${t('removedItems')}</div>
+            <div class="stat-value">${removedItems}</div>
         </div>
         <div class="stat-card">
-            <div class="stat-value">${products}</div>
             <div class="stat-label">${t('products')}</div>
+            <div class="stat-value">${products}</div>
         </div>
     `;
 }
@@ -979,15 +962,38 @@ function renderDetailTable() {
     const cols = ['Project', 'Product', 'MtlGroup', 'Material', 'Desc/Spec',
                   'Prior_Unit Cost', 'Curr_Unit Cost', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff'];
     const numCols = new Set(['Prior_Unit Cost', 'Curr_Unit Cost', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff']);
+    const mergeCols = ['Project', 'Product', 'MtlGroup'];
+
+    // Pre-compute rowspans for merge columns
+    const rows = comparisonResult;
+    const spans = {};
+    for (const mc of mergeCols) {
+        spans[mc] = new Array(rows.length).fill(1);
+        const skip = new Set();
+        for (let i = 0; i < rows.length; i++) {
+            if (skip.has(i)) { spans[mc][i] = 0; continue; }
+            let count = 1;
+            while (i + count < rows.length && rows[i + count][mc] === rows[i][mc]) {
+                skip.add(i + count);
+                count++;
+            }
+            spans[mc][i] = count;
+        }
+    }
 
     let html = '<table class="data-table"><thead><tr>';
     for (const c of cols) html += `<th>${c}</th>`;
     html += '</tr></thead><tbody>';
 
-    for (const row of comparisonResult) {
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
         html += '<tr>';
         for (const c of cols) {
-            if (numCols.has(c)) {
+            if (mergeCols.includes(c)) {
+                if (spans[c][i] === 0) continue; // skip merged cell
+                const rs = spans[c][i] > 1 ? ` rowspan="${spans[c][i]}" style="vertical-align:top;"` : '';
+                html += `<td${rs}>${row[c] ?? ''}</td>`;
+            } else if (numCols.has(c)) {
                 const v = row[c] ?? 0;
                 html += `<td class="${numClass(c === 'AmtDiff' ? v : 0)}">${fmtNum(v)}</td>`;
             } else {
@@ -1005,14 +1011,33 @@ function renderSummaryTable() {
     const { data, products } = summaryResult;
     const baseCols = ['Project', 'MtlGroup'];
 
+    // Compute rowspans for Project column
+    const projectSpans = new Array(data.length).fill(1);
+    const skip = new Set();
+    for (let i = 0; i < data.length; i++) {
+        if (skip.has(i)) { projectSpans[i] = 0; continue; }
+        let count = 1;
+        while (i + count < data.length && data[i + count].Project === data[i].Project) {
+            skip.add(i + count);
+            count++;
+        }
+        projectSpans[i] = count;
+    }
+
     let html = '<table class="data-table"><thead><tr>';
     for (const c of baseCols) html += `<th>${c}</th>`;
     for (const p of products) html += `<th>${p}</th>`;
     html += '</tr></thead><tbody>';
 
-    for (const row of data) {
+    for (let i = 0; i < data.length; i++) {
+        const row = data[i];
         html += '<tr>';
-        for (const c of baseCols) html += `<td>${row[c] ?? ''}</td>`;
+        // Project with rowspan
+        if (projectSpans[i] > 0) {
+            const rs = projectSpans[i] > 1 ? ` rowspan="${projectSpans[i]}" style="vertical-align:top;"` : '';
+            html += `<td${rs}>${row.Project ?? ''}</td>`;
+        }
+        html += `<td>${row.MtlGroup ?? ''}</td>`;
         for (const p of products) {
             const v = row[p] ?? 0;
             html += `<td class="${numClass(v)}">${fmtNum(v)}</td>`;
@@ -1025,14 +1050,16 @@ function renderSummaryTable() {
 }
 
 // ========================================
-// Tabs
+// Template Download
 // ========================================
-function switchTab(tab) {
-    document.querySelectorAll('.tab-btn').forEach((b, i) => {
-        b.classList.toggle('active', (tab === 'all' && i === 0) || (tab === 'sum' && i === 1));
-    });
-    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-    document.getElementById('tab-' + tab).classList.add('active');
+function downloadTemplate() {
+    const templateCols = ['Project', 'Product', 'MtlGroup', 'Material', 'Desc/Spec', 'Unit Cost', 'Ttl. Usage'];
+    const ws = XLSX.utils.aoa_to_sheet([templateCols]);
+    // Set column widths
+    ws['!cols'] = templateCols.map(c => ({ wch: Math.max(c.length + 2, 12) }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'BOM Data');
+    XLSX.writeFile(wb, 'BOM_Template.xlsx');
 }
 
 // ========================================
