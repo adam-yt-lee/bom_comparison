@@ -1086,7 +1086,7 @@ function renderDetailFromFilter() {
 
     const isMtlGroupOnly = fm && !fp;
     const allCols = isMtlGroupOnly
-        ? ['Project', 'Products', 'Material', 'Desc/Spec',
+        ? ['Products', 'Project', 'Material', 'Desc/Spec',
            'Prior_Unit Cost', 'Curr_Unit Cost', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff']
         : ['Project', 'Product', 'MtlGroup', 'Material', 'Desc/Spec',
            'Prior_Unit Cost', 'Curr_Unit Cost', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff'];
@@ -1106,7 +1106,7 @@ function renderDetailFromFilter() {
     });
 
     // Dedup when filtering by MtlGroup only (no product): collapse rows with same Material + same Usage
-    // Merge Project (textjoin) and collect affected Products
+    // Keep Project as-is, merge Product (textjoin with newline)
     if (fm && !fp) {
         const groups = {};
         const order = [];
@@ -1114,16 +1114,14 @@ function renderDetailFromFilter() {
             const key = r.Material + '|' + r['Prior_Unit Cost'] + '|' + r['Curr_Unit Cost']
                       + '|' + r['Prior_Ttl. Usage'] + '|' + r['Curr_Ttl. Usage'];
             if (!groups[key]) {
-                groups[key] = { ...r, _projects: new Set(), _products: new Set() };
+                groups[key] = { ...r, _products: new Set() };
                 order.push(key);
             }
-            if (r.Project) groups[key]._projects.add(r.Project);
             if (r.Product) groups[key]._products.add(r.Product);
         }
         rows = order.map(k => {
             const g = groups[k];
-            g.Project = [...g._projects].join('\n');
-            g._affectedProducts = [...g._products].join(', ');
+            g._affectedProducts = [...g._products].join('\n');
             return g;
         });
     }
@@ -1158,7 +1156,8 @@ function renderDetailFromFilter() {
                 const val = (row[c] ?? '').replace(/\n/g, '<br>');
                 html += `<td${rs} style="white-space:pre-line;vertical-align:top;">${val}</td>`;
             } else if (c === 'Products') {
-                html += `<td style="font-size:11px;color:var(--text-secondary);">${row._affectedProducts ?? ''}</td>`;
+                const val = (row._affectedProducts ?? '').replace(/\n/g, '<br>');
+                html += `<td style="white-space:pre-line;font-size:11px;color:var(--text-secondary);">${val}</td>`;
             } else if (numCols.has(c)) {
                 const v = row[c] ?? 0;
                 html += `<td class="${numClass(c === 'AmtDiff' ? v : 0)}">${fmtNum(v)}</td>`;
