@@ -1,0 +1,27 @@
+let
+    // 1. 導入新版 Excel 檔案
+    Source = Excel.Workbook(File.Contents(fnGetParam("Folder")&fnGetParam("CurrentBOM")), null, true),
+    Data = Source{[Item="BOM Data",Kind="Sheet"]}[Data],
+    Promoted = Table.PromoteHeaders(Data, [PromoteAllScalars=true]),
+
+    // 依照定案邏輯進行必要調整 (請確認新版檔案是否也需要手動更名或新增 Project)
+    RenamedInitial = Table.RenameColumns(Promoted,{{"Price(USD)", "Unit Cost"}}),
+    AddProjectCol = Table.AddColumn(RenamedInitial, "Project", each "Project"),
+    
+    // 2. 選取必要欄位
+    SelectedCols = Table.SelectColumns(AddProjectCol, {"Project", "Product", "SYS_CPN", "MtlGroup", "Material", "Desc/Spec", "Unit Cost", "Ttl. Usage"}),
+    
+    // 3. 移除 Dummy
+    FilteredDummy = Table.SelectRows(SelectedCols, each ([#"Unit Cost"] <> 0 and [#"Unit Cost"] <> null)),
+    
+    // 4. 建立複合 Key
+    AddKey = Table.AddColumn(FilteredDummy, "Compare_Key", each 
+        Text.From([Project]) & "|" & Text.From([Product]) & "|" & Text.From([Material]), type text),
+    
+    // 5. 分組彙總
+    Grouped = Table.Group(AddKey, {"Compare_Key", "Project", "Product", "MtlGroup",  "Material", "Desc/Spec"}, {
+        {"Curr_Qty", each List.Sum(Table.TransformColumnTypes(_, {{"Ttl. Usage", type number}})[#"Ttl. Usage"]), type number},
+        {"Curr_Price", each List.Average(Table.TransformColumnTypes(_, {{"Unit Cost", type number}})[#"Unit Cost"]), type number}
+    })
+in
+    Grouped

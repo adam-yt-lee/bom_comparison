@@ -1,0 +1,30 @@
+let
+    // 1. 導入舊版 Excel 檔案
+    Source = Excel.Workbook(File.Contents(fnGetParam("Folder")&fnGetParam("PriorBOM")), null, true),
+    Data = Source{[Item="BOM Data",Kind="Sheet"]}[Data],
+    Promoted = Table.PromoteHeaders(Data, [PromoteAllScalars=true]),
+    // 必要調整for 測試用檔案
+    已重新命名資料行 = Table.RenameColumns(Promoted,{{"Price(USD)", "Unit Cost"}}),
+    已新增自訂 = Table.AddColumn(已重新命名資料行, "Project", each "Project"),
+    
+    // 2. 選取必要欄位並對應新名稱 (移除 LN, LV, Ttl. Amt. 等)
+    SelectedCols = Table.SelectColumns(已新增自訂, {"Project", "Product", "SYS_CPN", "MtlGroup", "Material", "Desc/Spec", "Unit Cost", "Ttl. Usage"}),
+    
+    
+    // 3. 移除沒有價格的內容 (Dummy PN / 系統組合料)
+    FilteredDummy = Table.SelectRows(SelectedCols, each ([#"Unit Cost"] <> 0 and [#"Unit Cost"] <> null)),
+    
+    // 4. 建立複合 Key (Project + Product + Material)
+    AddKey = Table.AddColumn(FilteredDummy, "Compare_Key", each 
+        Text.From([Project]) & "|" & Text.From([Product]) & "|" & Text.From([Material]), type text),
+    
+    // 5. 分組彙總 (解決不同子階使用相同物料的問題)
+    Grouped = Table.Group(AddKey, {"Compare_Key", "Project", "Product", "MtlGroup",  "Material", "Desc/Spec"}, {
+        {"Old_Qty", each List.Sum(Table.TransformColumnTypes(_, {{"Ttl. Usage", type number}})[#"Ttl. Usage"]), type number},
+        {"Old_Price", each List.Average(Table.TransformColumnTypes(_, {{"Unit Cost", type number}})[Unit Cost]), type number}
+    }),
+    
+    // 6. 鎖定記憶體
+    FinalBuffered = Table.Buffer(Grouped)
+in
+    FinalBuffered

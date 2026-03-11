@@ -1,0 +1,82 @@
+let
+    // 1. 呼叫本季查詢
+    Source = CurrentBOM,
+    
+    // 2. 執行全外部連接 (Full Outer Join)
+    Merged = Table.NestedJoin(Source, {"Compare_Key"}, PriorBOM, {"Compare_Key"}, "PriorData", JoinKind.FullOuter),
+    
+    // 3. 展開舊季度數據
+    Expanded = Table.ExpandTableColumn(Merged, "PriorData", 
+        {"Old_Qty", "Old_Price", "Project", "MtlGroup", "Product", "Material", "Desc/Spec", "Compare_Key"}, 
+        {"Old_Qty", "Old_Price", "Old_Proj", "Old_Sub", "Old_Prod", "Old_Mtl", "Old_Desc", "Old_Key"}),
+    
+    // 4. 【關鍵】篩選：Key不匹配 OR 價格/數量有差異
+    FilterChanges = Table.SelectRows(Expanded, each 
+        [Compare_Key] = null 
+        or [Old_Key] = null
+        or ([Curr_Price] ?? 0) <> ([Old_Price] ?? 0)
+        or ([Curr_Qty] ?? 0) <> ([Old_Qty] ?? 0)
+    ),
+    
+    // 5. 補齊欄位計算
+    AddFilledKeys = Table.AddColumn(FilterChanges, "_Calc", each [
+        // Compare_Key 欄位：優先取本季，缺則取舊季
+        Final_Project  = [Project]  ?? [Old_Proj],
+        Final_Product  = [Product]  ?? [Old_Prod],
+        Final_Material = [Material] ?? [Old_Mtl],
+        Final_Desc = [#"Desc/Spec"] ?? [Old_Desc],
+        
+        // 非 Key 欄位：a=b→a, a≠b→a/b, 缺值補有值
+        Final_MtlGroup = if [Old_Sub] = null then [MtlGroup]
+                         else if [MtlGroup] = null then [Old_Sub]
+                         else if [Old_Sub] = [MtlGroup] then [MtlGroup]
+                         else (Text.From([Old_Sub]) & "/" & Text.From([MtlGroup])),
+        
+        // 數值欄位：補 0
+        Curr_Price  = [Curr_Price] ?? 0,
+        Prior_Price = [Old_Price]  ?? 0,
+        Curr_Qty    = [Curr_Qty]   ?? 0,
+        Prior_Qty   = [Old_Qty]    ?? 0,
+        
+        // 金額差異
+        AmtDiff = (([Curr_Price] ?? 0) * ([Curr_Qty] ?? 0)) - (([Old_Price] ?? 0) * ([Old_Qty] ?? 0))
+    ]),
+    
+    // 6. 移除會衝突的原始欄位
+    CleanBeforeExpand = Table.RemoveColumns(AddFilledKeys, 
+        {"Curr_Price", "Curr_Qty", "Old_Price", "Old_Qty", 
+         "Project", "Product", "Material", "Desc/Spec", "MtlGroup",
+         "Old_Proj", "Old_Prod", "Old_Mtl", "Old_Desc", "Old_Sub",
+         "Compare_Key", "Old_Key"}),
+    
+    // 7. 展開計算結果
+    ExpandCalc = Table.ExpandRecordColumn(CleanBeforeExpand, "_Calc", 
+        {"Final_Project", "Final_Product", "Final_MtlGroup", "Final_Material", "Final_Desc",
+         "Prior_Price", "Curr_Price", "Prior_Qty", "Curr_Qty", "AmtDiff"}),
+    
+    // 8. 重新命名
+    Renamed = Table.RenameColumns(ExpandCalc, {
+        {"Final_Project", "Project"},
+        {"Final_Product", "Product"},
+        {"Final_MtlGroup", "MtlGroup"},
+        {"Final_Material", "Material"},
+        {"Final_Desc", "Desc/Spec"},
+        {"Prior_Price", "Prior_Unit Cost"},
+        {"Curr_Price", "Curr_Unit Cost"},
+        {"Prior_Qty", "Prior_Ttl. Usage"},
+        {"Curr_Qty", "Curr_Ttl. Usage"}
+    }),
+    
+    // 9. 最終欄位順序
+    FinalReport = Table.SelectColumns(Renamed, {
+        "Project", 
+        "Product", 
+        "MtlGroup",
+        "Material", 
+        "Desc/Spec",
+        "Prior_Unit Cost", "Curr_Unit Cost", 
+        "Prior_Ttl. Usage", "Curr_Ttl. Usage", 
+        "AmtDiff"
+    })
+in
+    FinalReport
