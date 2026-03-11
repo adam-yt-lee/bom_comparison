@@ -433,6 +433,47 @@
 
         /* (Tabs removed - both views shown inline) */
 
+        .summary-clickable {
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .summary-clickable:hover {
+            background: var(--primary-pale) !important;
+            text-decoration: underline;
+        }
+
+        .detail-filter-bar {
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+            margin-bottom: var(--space-xs);
+        }
+        .detail-filter-bar .filter-label {
+            font-size: 13px;
+            color: var(--primary-dark);
+            font-weight: 600;
+        }
+        .detail-filter-bar .clear-filter {
+            font-size: 11px;
+            color: var(--text-muted);
+            background: none;
+            border: 1px solid var(--primary-pale);
+            border-radius: 4px;
+            padding: 2px 8px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .detail-filter-bar .clear-filter:hover {
+            background: var(--primary-pale);
+            color: var(--primary-dark);
+        }
+        .detail-empty-hint {
+            text-align: center;
+            padding: var(--space-md);
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
         /* ========================================
            12. Summary 統計
         ======================================== */
@@ -580,8 +621,16 @@
                 <div class="table-wrapper" id="tableSum" style="max-height:300px;"></div>
 
                 <!-- Detail Table -->
-                <div class="section-title" data-i18n="detailTitle" style="margin-top:var(--space-sm);">All Changes (Detail)</div>
-                <div class="table-wrapper" id="tableAll"></div>
+                <div style="margin-top:var(--space-sm);">
+                    <div class="section-title" style="display:flex; align-items:center; gap:var(--space-sm);">
+                        <span data-i18n="detailTitle">All Changes (Detail)</span>
+                        <span id="detailFilterInfo" class="filter-label" style="font-size:13px; font-weight:400; color:var(--primary-accent);"></span>
+                        <button id="clearFilterBtn" class="clear-filter" style="display:none; margin-left:auto;" onclick="clearDetailFilter()">✕ Clear</button>
+                    </div>
+                    <div id="detailContent">
+                        <div class="detail-empty-hint" id="detailEmptyHint" data-i18n="detailHint">Click a value in the summary table above to view details</div>
+                    </div>
+                </div>
             </div>
 
         </main>
@@ -627,6 +676,7 @@ const i18n = {
         newItems: 'New Items',
         removedItems: 'Removed Items',
         products: 'Products',
+        detailHint: 'Click a value in the summary table to view details',
     },
     zh: {
         title: 'BOM 比對工具',
@@ -648,6 +698,7 @@ const i18n = {
         newItems: '新增項目',
         removedItems: '移除項目',
         products: '產品數',
+        detailHint: '點擊彙總表的數值以查看明細',
     }
 };
 
@@ -665,6 +716,7 @@ function setLang(lang) {
     // Re-render tables if results exist
     if (comparisonResult) {
         renderStats();
+        renderSummaryTable();
     }
 }
 
@@ -899,8 +951,12 @@ function runComparison() {
             summaryResult = buildSummary(comparisonResult);
 
             renderStats();
-            renderDetailTable();
             renderSummaryTable();
+            // Detail starts empty — user clicks summary to drill down
+            document.getElementById('detailContent').innerHTML =
+                `<div class="detail-empty-hint" id="detailEmptyHint" data-i18n="detailHint">${t('detailHint')}</div>`;
+            document.getElementById('detailFilterInfo').textContent = '';
+            document.getElementById('clearFilterBtn').style.display = 'none';
 
             document.getElementById('resultSection').classList.add('visible');
             showStatus(t('done') + ' — ' + comparisonResult.length + ' changes found', 'success');
@@ -958,14 +1014,23 @@ function numClass(v) {
     return 'num-cell';
 }
 
-function renderDetailTable() {
-    const cols = ['Project', 'Product', 'MtlGroup', 'Material', 'Desc/Spec',
+function renderDetailTable(filterProduct, filterMtlGroup) {
+    const isFiltered = filterProduct != null && filterMtlGroup != null;
+    const allCols = ['Project', 'Product', 'MtlGroup', 'Material', 'Desc/Spec',
                   'Prior_Unit Cost', 'Curr_Unit Cost', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff'];
+    // When filtered, hide Product & MtlGroup columns
+    const hideCols = isFiltered ? new Set(['Product', 'MtlGroup']) : new Set();
+    const cols = allCols.filter(c => !hideCols.has(c));
     const numCols = new Set(['Prior_Unit Cost', 'Curr_Unit Cost', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff']);
-    const mergeCols = ['Project', 'Product', 'MtlGroup'];
+    const mergeCols = cols.filter(c => ['Project', 'Product', 'MtlGroup'].includes(c));
+
+    // Filter rows
+    let rows = comparisonResult;
+    if (isFiltered) {
+        rows = rows.filter(r => r.Product === filterProduct && r.MtlGroup === filterMtlGroup);
+    }
 
     // Pre-compute rowspans for merge columns
-    const rows = comparisonResult;
     const spans = {};
     for (const mc of mergeCols) {
         spans[mc] = new Array(rows.length).fill(1);
@@ -981,7 +1046,7 @@ function renderDetailTable() {
         }
     }
 
-    let html = '<table class="data-table"><thead><tr>';
+    let html = '<div class="table-wrapper"><table class="data-table"><thead><tr>';
     for (const c of cols) html += `<th>${c}</th>`;
     html += '</tr></thead><tbody>';
 
@@ -990,7 +1055,7 @@ function renderDetailTable() {
         html += '<tr>';
         for (const c of cols) {
             if (mergeCols.includes(c)) {
-                if (spans[c][i] === 0) continue; // skip merged cell
+                if (spans[c][i] === 0) continue;
                 const rs = spans[c][i] > 1 ? ` rowspan="${spans[c][i]}" style="vertical-align:top;"` : '';
                 html += `<td${rs}>${row[c] ?? ''}</td>`;
             } else if (numCols.has(c)) {
@@ -1003,8 +1068,23 @@ function renderDetailTable() {
         html += '</tr>';
     }
 
-    html += '</tbody></table>';
-    document.getElementById('tableAll').innerHTML = html;
+    html += '</tbody></table></div>';
+
+    // Update UI
+    document.getElementById('detailContent').innerHTML = html;
+    document.getElementById('detailFilterInfo').textContent =
+        isFiltered ? `— ${filterProduct} / ${filterMtlGroup}` : '';
+    document.getElementById('clearFilterBtn').style.display = isFiltered ? 'inline-block' : 'none';
+}
+
+function drillDown(product, mtlGroup) {
+    renderDetailTable(product, mtlGroup);
+    // Scroll detail into view
+    document.getElementById('detailContent').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function clearDetailFilter() {
+    renderDetailTable();
 }
 
 function renderSummaryTable() {
@@ -1040,7 +1120,9 @@ function renderSummaryTable() {
         html += `<td>${row.MtlGroup ?? ''}</td>`;
         for (const p of products) {
             const v = row[p] ?? 0;
-            html += `<td class="${numClass(v)}">${fmtNum(v)}</td>`;
+            const escaped_p = p.replace(/'/g, "\\'");
+            const escaped_mg = (row.MtlGroup ?? '').replace(/'/g, "\\'");
+            html += `<td class="${numClass(v)} summary-clickable" onclick="drillDown('${escaped_p}','${escaped_mg}')">${fmtNum(v)}</td>`;
         }
         html += '</tr>';
     }
