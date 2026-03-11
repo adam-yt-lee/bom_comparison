@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOM Comparison Tool</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        /* ========================================
+           1. CSS 重置 & 基礎設定
+        ======================================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* ========================================
+           2. 設計系統變數 (Design Tokens)
+        ======================================== */
+        :root {
+            /* 主色系 */
+            --primary: #5CAB32;
+            --primary-dark: #4a9428;
+            --primary-light: #7FBD4F;
+            --primary-pale: #E8F4DC;
+            --primary-accent: #3d7f1f;
+
+            /* 背景色階 */
+            --bg-page: #F5F9F2;
+            --bg-container: #ffffff;
+            --bg-content: #FAFCF8;
+
+            /* 文字色 */
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --text-muted: #999999;
+
+            /* 狀態色 */
+            --color-positive: #2e7d32;
+            --color-negative: #c62828;
+
+            /* 陰影 */
+            --shadow-sm: 0 2px 8px rgba(92, 171, 50, 0.06);
+            --shadow-md: 0 4px 16px rgba(92, 171, 50, 0.10);
+            --shadow-lg: 0 8px 32px rgba(92, 171, 50, 0.12);
+
+            /* 圓角 */
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-pill: 25px;
+            --radius-circle: 50%;
+
+            /* 間距 */
+            --space-xs: 8px;
+            --space-sm: 12px;
+            --space-md: 20px;
+            --space-lg: 40px;
+
+            /* 過渡動畫 */
+            --transition: all 0.3s ease;
+        }
+
+        /* ========================================
+           3. 頁面背景
+        ======================================== */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-page);
+            min-height: 100vh;
+            padding: var(--space-md);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g" x1="0%25" y1="0%25" x2="100%25" y2="100%25"><stop offset="0%25" style="stop-color:%235CAB32;stop-opacity:0.05"/><stop offset="100%25" style="stop-color:%234a9428;stop-opacity:0.05"/></linearGradient></defs><circle cx="100" cy="100" r="100" fill="url(%23g)"/></svg>');
+            background-size: 300px 300px;
+            opacity: 0.3;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* ========================================
+           4. 主容器
+        ======================================== */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: var(--bg-container);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+        }
+
+        /* ========================================
+           5. Header 區塊
+        ======================================== */
+        .header {
+            background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary-pale) 100%);
+            color: var(--primary-dark);
+            padding: var(--space-md) var(--space-md);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: var(--radius-circle);
+            pointer-events: none;
+            top: -60%;
+            right: -5%;
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+        }
+
+        .header-logo {
+            width: 50px;
+            height: 50px;
+            background: var(--bg-container);
+            border-radius: var(--radius-circle);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow-sm);
+            animation: float 3s ease-in-out infinite;
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .header-text { flex: 1; }
+
+        .header h1 {
+            font-size: 1.4em;
+            color: var(--primary-dark);
+            margin-bottom: 2px;
+        }
+
+        .header p {
+            font-size: 0.9em;
+            color: var(--primary-accent);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: var(--space-xs);
+        }
+
+        .header-btn {
+            background: var(--bg-container);
+            border: none;
+            color: var(--primary-dark);
+            padding: 8px 16px;
+            border-radius: var(--radius-pill);
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+        }
+
+        .header-btn:hover { background: var(--primary-pale); }
+        .header-btn.active { background: var(--primary-light); color: white; }
+
+        /* ========================================
+           6. 內容區塊
+        ======================================== */
+        .content {
+            padding: var(--space-lg);
+            background: var(--bg-content);
+        }
+
+        /* ========================================
+           7. 按鈕系統
+        ======================================== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: var(--space-sm) var(--space-md);
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition);
+            text-decoration: none;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
+            color: white;
+            box-shadow: var(--shadow-md);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: var(--primary-light);
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .btn-option {
+            background: var(--bg-content);
+            color: var(--primary-dark);
+            border: 2px solid var(--primary-pale);
+        }
+        .btn-option:hover {
+            background: var(--primary-pale);
+            border-color: var(--primary-light);
+        }
+        .btn-option.active {
+            background: var(--primary-light);
+            color: white;
+            border-color: var(--primary-light);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: var(--space-xs);
+            flex-wrap: wrap;
+        }
+
+        /* ========================================
+           8. 檔案上傳區
+        ======================================== */
+        .upload-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-md);
+            margin-bottom: var(--space-md);
+        }
+
+        .upload-box {
+            border: 2px dashed var(--primary-pale);
+            border-radius: var(--radius-md);
+            padding: var(--space-md);
+            text-align: center;
+            transition: var(--transition);
+            cursor: pointer;
+            position: relative;
+        }
+
+        .upload-box:hover,
+        .upload-box.dragover {
+            border-color: var(--primary-light);
+            background: var(--primary-pale);
+        }
+
+        .upload-box.loaded {
+            border-color: var(--primary);
+            background: var(--primary-pale);
+        }
+
+        .upload-box input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .upload-icon {
+            font-size: 36px;
+            margin-bottom: var(--space-xs);
+        }
+
+        .upload-label {
+            font-weight: 600;
+            color: var(--primary-dark);
+            font-size: 15px;
+            margin-bottom: 4px;
+        }
+
+        .upload-hint {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .upload-filename {
+            font-size: 13px;
+            color: var(--primary);
+            font-weight: 600;
+            margin-top: var(--space-xs);
+            word-break: break-all;
+        }
+
+        /* ========================================
+           9. 結果表格
+        ======================================== */
+        .result-section {
+            display: none;
+            margin-top: var(--space-md);
+        }
+
+        .result-section.visible {
+            display: block;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--primary-dark);
+            margin-bottom: var(--space-sm);
+            padding-bottom: var(--space-xs);
+            border-bottom: 2px solid var(--primary-pale);
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--primary-pale);
+            margin-bottom: var(--space-md);
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .data-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .data-table th {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 10px 14px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .data-table td {
+            padding: 8px 14px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .data-table tbody tr:hover {
+            background: var(--primary-pale);
+        }
+
+        .data-table tbody tr:nth-child(even) {
+            background: #fafff6;
+        }
+        .data-table tbody tr:nth-child(even):hover {
+            background: var(--primary-pale);
+        }
+
+        .num-positive { color: var(--color-positive); font-weight: 600; }
+        .num-negative { color: var(--color-negative); font-weight: 600; }
+        .num-cell { text-align: right; font-variant-numeric: tabular-nums; }
+
+        /* ========================================
+           10. 狀態訊息
+        ======================================== */
+        .status-bar {
+            display: none;
+            padding: var(--space-sm) var(--space-md);
+            border-radius: var(--radius-sm);
+            margin-bottom: var(--space-md);
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .status-bar.visible { display: flex; align-items: center; gap: 8px; }
+        .status-bar.info { background: #e3f2fd; color: #1565c0; }
+        .status-bar.success { background: var(--primary-pale); color: var(--primary-dark); }
+        .status-bar.error { background: #ffebee; color: #c62828; }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid currentColor;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ========================================
+           11. Tab 切換
+        ======================================== */
+        .tab-group {
+            display: flex;
+            gap: 2px;
+            margin-bottom: var(--space-md);
+            background: var(--primary-pale);
+            border-radius: var(--radius-sm);
+            padding: 3px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            background: transparent;
+            color: var(--primary-dark);
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: var(--transition);
+        }
+
+        .tab-btn:hover { background: rgba(255,255,255,0.5); }
+        .tab-btn.active { background: white; box-shadow: var(--shadow-sm); }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ========================================
+           12. Summary 統計
+        ======================================== */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: var(--space-sm);
+            margin-bottom: var(--space-md);
+        }
+
+        .stat-card {
+            background: white;
+            border: 1px solid var(--primary-pale);
+            border-radius: var(--radius-sm);
+            padding: var(--space-sm) var(--space-md);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--primary-dark);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* ========================================
+           13. Footer 區塊
+        ======================================== */
+        .footer {
+            background: linear-gradient(135deg, var(--primary-pale) 0%, var(--bg-content) 100%);
+            padding: var(--space-md);
+            text-align: center;
+            color: var(--primary-accent);
+            font-size: 13px;
+            border-top: 2px solid var(--primary-pale);
+        }
+
+        /* ========================================
+           14. 工具類別
+        ======================================== */
+        .text-center { text-align: center; }
+        .text-muted { color: var(--text-muted); }
+        .mt-md { margin-top: var(--space-md); }
+        .mb-md { margin-bottom: var(--space-md); }
+
+        /* ========================================
+           15. RWD 響應式
+        ======================================== */
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.2em; }
+            .header p { font-size: 0.8em; }
+            .content { padding: var(--space-md); }
+            .upload-section { grid-template-columns: 1fr; }
+            .header-actions {
+                position: absolute;
+                top: var(--space-sm);
+                right: var(--space-sm);
+            }
+            .header-content { padding-right: 80px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="header-logo">📊</div>
+                <div class="header-text">
+                    <h1 id="title">BOM Comparison Tool</h1>
+                    <p id="subtitle">Upload Current & Prior BOM files to compare differences</p>
+                </div>
+                <div class="header-actions">
+                    <button class="header-btn active" onclick="setLang('en')">EN</button>
+                    <button class="header-btn" onclick="setLang('zh')">中</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content -->
+        <main class="content">
+
+            <!-- File Upload -->
+            <div class="upload-section">
+                <div class="upload-box" id="currentBox">
+                    <input type="file" id="currentFile" accept=".xlsx,.xls" onchange="handleFile(this, 'current')">
+                    <div class="upload-icon">📁</div>
+                    <div class="upload-label" data-i18n="currentBom">Current BOM</div>
+                    <div class="upload-hint" data-i18n="uploadHint">Click or drag .xlsx file here</div>
+                    <div class="upload-filename" id="currentFileName"></div>
+                </div>
+                <div class="upload-box" id="priorBox">
+                    <input type="file" id="priorFile" accept=".xlsx,.xls" onchange="handleFile(this, 'prior')">
+                    <div class="upload-icon">📁</div>
+                    <div class="upload-label" data-i18n="priorBom">Prior BOM</div>
+                    <div class="upload-hint" data-i18n="uploadHint">Click or drag .xlsx file here</div>
+                    <div class="upload-filename" id="priorFileName"></div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="btn-group">
+                <button class="btn btn-primary" id="compareBtn" onclick="runComparison()" disabled>
+                    <span data-i18n="compare">Compare</span>
+                </button>
+            </div>
+
+            <!-- Status -->
+            <div class="status-bar" id="statusBar">
+                <div class="spinner" id="statusSpinner"></div>
+                <span id="statusText"></span>
+            </div>
+
+            <!-- Results -->
+            <div class="result-section" id="resultSection">
+
+                <!-- Stats -->
+                <div class="stats-row" id="statsRow"></div>
+
+                <!-- Tabs -->
+                <div class="tab-group">
+                    <button class="tab-btn active" onclick="switchTab('all')" data-i18n="detailTab">Detail (All Changes)</button>
+                    <button class="tab-btn" onclick="switchTab('sum')" data-i18n="summaryTab">Summary (By MtlGroup)</button>
+                </div>
+
+                <!-- Download Buttons -->
+                <div class="btn-group mb-md">
+                    <button class="btn btn-secondary" onclick="downloadExcel('all')">
+                        <span data-i18n="downloadDetail">Download Detail (.xlsx)</span>
+                    </button>
+                    <button class="btn btn-secondary" onclick="downloadExcel('sum')">
+                        <span data-i18n="downloadSummary">Download Summary (.xlsx)</span>
+                    </button>
+                </div>
+
+                <!-- Detail Table -->
+                <div class="tab-content active" id="tab-all">
+                    <div class="section-title" data-i18n="detailTitle">BOM Comparison - All Changes</div>
+                    <div class="table-wrapper" id="tableAll"></div>
+                </div>
+
+                <!-- Summary Table -->
+                <div class="tab-content" id="tab-sum">
+                    <div class="section-title" data-i18n="summaryTitle">BOM Comparison - Summary by MtlGroup</div>
+                    <div class="table-wrapper" id="tableSum"></div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            &copy; 2025 BOM Comparison Tool
+        </footer>
+
+    </div>
+
+<script>
+// ========================================
+// State
+// ========================================
+let currentData = null;
+let priorData = null;
+let comparisonResult = null;
+let summaryResult = null;
+let currentLang = 'en';
+
+// ========================================
+// i18n
+// ========================================
+const i18n = {
+    en: {
+        title: 'BOM Comparison Tool',
+        subtitle: 'Upload Current & Prior BOM files to compare differences',
+        currentBom: 'Current BOM',
+        priorBom: 'Prior BOM',
+        uploadHint: 'Click or drag .xlsx file here',
+        compare: 'Compare',
+        detailTab: 'Detail (All Changes)',
+        summaryTab: 'Summary (By MtlGroup)',
+        downloadDetail: 'Download Detail (.xlsx)',
+        downloadSummary: 'Download Summary (.xlsx)',
+        detailTitle: 'BOM Comparison - All Changes',
+        summaryTitle: 'BOM Comparison - Summary by MtlGroup',
+        processing: 'Processing comparison...',
+        done: 'Comparison complete!',
+        errorSheet: 'Cannot find "BOM Data" sheet in the file.',
+        totalChanges: 'Total Changes',
+        totalAmtDiff: 'Total AmtDiff',
+        newItems: 'New Items',
+        removedItems: 'Removed Items',
+        products: 'Products',
+    },
+    zh: {
+        title: 'BOM 比對工具',
+        subtitle: '上傳 Current 與 Prior BOM 檔案進行差異比較',
+        currentBom: '本期 BOM (Current)',
+        priorBom: '前期 BOM (Prior)',
+        uploadHint: '點擊或拖曳 .xlsx 檔案至此',
+        compare: '開始比對',
+        detailTab: '明細 (所有變動)',
+        summaryTab: '彙總 (依 MtlGroup)',
+        downloadDetail: '下載明細 (.xlsx)',
+        downloadSummary: '下載彙總 (.xlsx)',
+        detailTitle: 'BOM 比對 - 所有變動明細',
+        summaryTitle: 'BOM 比對 - MtlGroup 彙總',
+        processing: '比對處理中...',
+        done: '比對完成！',
+        errorSheet: '檔案中找不到 "BOM Data" 工作表。',
+        totalChanges: '變動項目數',
+        totalAmtDiff: '金額差異合計',
+        newItems: '新增項目',
+        removedItems: '移除項目',
+        products: '產品數',
+    }
+};
+
+function t(key) { return i18n[currentLang][key] || key; }
+
+function setLang(lang) {
+    currentLang = lang;
+    document.querySelectorAll('.header-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('title').textContent = t('title');
+    document.getElementById('subtitle').textContent = t('subtitle');
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        el.textContent = t(el.dataset.i18n);
+    });
+    // Re-render tables if results exist
+    if (comparisonResult) {
+        renderStats();
+    }
+}
+
+// ========================================
+// File Handling
+// ========================================
+function handleFile(input, type) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const box = document.getElementById(type === 'current' ? 'currentBox' : 'priorBox');
+    const nameEl = document.getElementById(type === 'current' ? 'currentFileName' : 'priorFileName');
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const workbook = XLSX.read(e.target.result, { type: 'array' });
+        const sheetName = workbook.SheetNames.find(n => n === 'BOM Data') || workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const json = XLSX.utils.sheet_to_json(sheet, { defval: null });
+
+        if (type === 'current') {
+            currentData = json;
+        } else {
+            priorData = json;
+        }
+
+        box.classList.add('loaded');
+        nameEl.textContent = file.name + ' (' + json.length + ' rows)';
+        checkReady();
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+// Drag & drop
+document.querySelectorAll('.upload-box').forEach(box => {
+    box.addEventListener('dragover', e => { e.preventDefault(); box.classList.add('dragover'); });
+    box.addEventListener('dragleave', () => box.classList.remove('dragover'));
+    box.addEventListener('drop', e => {
+        e.preventDefault();
+        box.classList.remove('dragover');
+        const input = box.querySelector('input[type="file"]');
+        input.files = e.dataTransfer.files;
+        input.dispatchEvent(new Event('change'));
+    });
+});
+
+function checkReady() {
+    document.getElementById('compareBtn').disabled = !(currentData && priorData);
+}
+
+// ========================================
+// Status
+// ========================================
+function showStatus(msg, type) {
+    const bar = document.getElementById('statusBar');
+    const text = document.getElementById('statusText');
+    const spinner = document.getElementById('statusSpinner');
+    bar.className = 'status-bar visible ' + type;
+    spinner.style.display = type === 'info' ? 'block' : 'none';
+    text.textContent = msg;
+}
+
+function hideStatus() {
+    document.getElementById('statusBar').className = 'status-bar';
+}
+
+// ========================================
+// BOM Processing (mirrors M code logic)
+// ========================================
+function processBOM(rawData, prefix) {
+    // prefix: 'Curr' or 'Old'
+    const qtyField = prefix + '_Qty';
+    const priceField = prefix + '_Price';
+
+    // Rename Price(USD) -> Unit Cost if needed
+    const rows = rawData.map(row => {
+        const r = { ...row };
+        if (r['Price(USD)'] !== undefined && r['Unit Cost'] === undefined) {
+            r['Unit Cost'] = r['Price(USD)'];
+        }
+        if (!r['Project']) r['Project'] = 'Project';
+        return r;
+    });
+
+    // Filter dummy (Unit Cost = 0 or null)
+    const filtered = rows.filter(r => {
+        const uc = parseFloat(r['Unit Cost']);
+        return uc && uc !== 0;
+    });
+
+    // Group by Compare_Key
+    const groups = {};
+    for (const row of filtered) {
+        const key = String(row['Project'] || '') + '|' + String(row['Product'] || '') + '|' + String(row['Material'] || '');
+        if (!groups[key]) {
+            groups[key] = {
+                Compare_Key: key,
+                Project: row['Project'] || '',
+                Product: row['Product'] || '',
+                MtlGroup: row['MtlGroup'] || '',
+                Material: row['Material'] || '',
+                'Desc/Spec': row['Desc/Spec'] || '',
+                _qty: [],
+                _price: []
+            };
+        }
+        groups[key]._qty.push(parseFloat(row['Ttl. Usage']) || 0);
+        groups[key]._price.push(parseFloat(row['Unit Cost']) || 0);
+    }
+
+    // Aggregate
+    const result = Object.values(groups).map(g => {
+        const obj = {
+            Compare_Key: g.Compare_Key,
+            Project: g.Project,
+            Product: g.Product,
+            MtlGroup: g.MtlGroup,
+            Material: g.Material,
+            'Desc/Spec': g['Desc/Spec'],
+        };
+        obj[qtyField] = g._qty.reduce((a, b) => a + b, 0);
+        obj[priceField] = g._price.reduce((a, b) => a + b, 0) / g._price.length;
+        return obj;
+    });
+
+    return result;
+}
+
+function fullOuterJoin(currentBOM, priorBOM) {
+    const currentMap = {};
+    for (const row of currentBOM) currentMap[row.Compare_Key] = row;
+
+    const priorMap = {};
+    for (const row of priorBOM) priorMap[row.Compare_Key] = row;
+
+    const allKeys = new Set([...Object.keys(currentMap), ...Object.keys(priorMap)]);
+    const joined = [];
+
+    for (const key of allKeys) {
+        const curr = currentMap[key] || null;
+        const prior = priorMap[key] || null;
+
+        const currPrice = curr ? (curr.Curr_Price ?? 0) : 0;
+        const oldPrice = prior ? (prior.Old_Price ?? 0) : 0;
+        const currQty = curr ? (curr.Curr_Qty ?? 0) : 0;
+        const oldQty = prior ? (prior.Old_Qty ?? 0) : 0;
+
+        // Filter: Key mismatch OR price/qty difference
+        if (!curr || !prior || currPrice !== oldPrice || currQty !== oldQty) {
+            const currMtlGroup = curr ? curr.MtlGroup : null;
+            const priorMtlGroup = prior ? prior.MtlGroup : null;
+            let finalMtlGroup;
+            if (!priorMtlGroup) finalMtlGroup = currMtlGroup;
+            else if (!currMtlGroup) finalMtlGroup = priorMtlGroup;
+            else if (priorMtlGroup === currMtlGroup) finalMtlGroup = currMtlGroup;
+            else finalMtlGroup = String(priorMtlGroup) + '/' + String(currMtlGroup);
+
+            joined.push({
+                Project: (curr?.Project) ?? (prior?.Project) ?? '',
+                Product: (curr?.Product) ?? (prior?.Product) ?? '',
+                MtlGroup: finalMtlGroup || '',
+                Material: (curr?.Material) ?? (prior?.Material) ?? '',
+                'Desc/Spec': (curr?.['Desc/Spec']) ?? (prior?.['Desc/Spec']) ?? '',
+                'Prior_Unit Cost': oldPrice,
+                'Curr_Unit Cost': currPrice,
+                'Prior_Ttl. Usage': oldQty,
+                'Curr_Ttl. Usage': currQty,
+                AmtDiff: (currPrice * currQty) - (oldPrice * oldQty),
+                _isNew: !prior,
+                _isRemoved: !curr,
+            });
+        }
+    }
+
+    // Sort by MtlGroup, Material
+    joined.sort((a, b) => {
+        const mg = String(a.MtlGroup).localeCompare(String(b.MtlGroup));
+        if (mg !== 0) return mg;
+        return String(a.Material).localeCompare(String(b.Material));
+    });
+
+    return joined;
+}
+
+function buildSummary(comparison) {
+    const groups = {};
+    for (const row of comparison) {
+        const key = row.Project + '|' + row.Product + '|' + row.MtlGroup;
+        if (!groups[key]) {
+            groups[key] = {
+                Project: row.Project,
+                Product: row.Product,
+                MtlGroup: row.MtlGroup,
+                AmtDiff: 0
+            };
+        }
+        groups[key].AmtDiff += row.AmtDiff;
+    }
+
+    // Pivot by Product
+    const products = [...new Set(Object.values(groups).map(g => g.Product))].sort();
+    const mtlGroups = {};
+
+    for (const g of Object.values(groups)) {
+        const mk = g.Project + '|' + g.MtlGroup;
+        if (!mtlGroups[mk]) {
+            mtlGroups[mk] = { Project: g.Project, MtlGroup: g.MtlGroup };
+        }
+        mtlGroups[mk][g.Product] = (mtlGroups[mk][g.Product] || 0) + g.AmtDiff;
+    }
+
+    const result = Object.values(mtlGroups).sort((a, b) =>
+        String(a.MtlGroup).localeCompare(String(b.MtlGroup))
+    );
+
+    return { data: result, products };
+}
+
+// ========================================
+// Main Comparison
+// ========================================
+function runComparison() {
+    showStatus(t('processing'), 'info');
+    document.getElementById('resultSection').classList.remove('visible');
+
+    // Use setTimeout to allow UI update
+    setTimeout(() => {
+        try {
+            const currentBOM = processBOM(currentData, 'Curr');
+            const priorBOM = processBOM(priorData, 'Old');
+            comparisonResult = fullOuterJoin(currentBOM, priorBOM);
+            summaryResult = buildSummary(comparisonResult);
+
+            renderStats();
+            renderDetailTable();
+            renderSummaryTable();
+
+            document.getElementById('resultSection').classList.add('visible');
+            showStatus(t('done') + ' — ' + comparisonResult.length + ' changes found', 'success');
+        } catch (err) {
+            showStatus('Error: ' + err.message, 'error');
+            console.error(err);
+        }
+    }, 50);
+}
+
+// ========================================
+// Rendering
+// ========================================
+function renderStats() {
+    const totalAmtDiff = comparisonResult.reduce((s, r) => s + r.AmtDiff, 0);
+    const newItems = comparisonResult.filter(r => r._isNew).length;
+    const removedItems = comparisonResult.filter(r => r._isRemoved).length;
+    const products = [...new Set(comparisonResult.map(r => r.Product))].length;
+
+    const fmtAmt = totalAmtDiff.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const amtClass = totalAmtDiff >= 0 ? 'num-positive' : 'num-negative';
+
+    document.getElementById('statsRow').innerHTML = `
+        <div class="stat-card">
+            <div class="stat-value">${comparisonResult.length}</div>
+            <div class="stat-label">${t('totalChanges')}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value ${amtClass}">${fmtAmt}</div>
+            <div class="stat-label">${t('totalAmtDiff')}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">${newItems}</div>
+            <div class="stat-label">${t('newItems')}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">${removedItems}</div>
+            <div class="stat-label">${t('removedItems')}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">${products}</div>
+            <div class="stat-label">${t('products')}</div>
+        </div>
+    `;
+}
+
+function fmtNum(v, decimals = 2) {
+    if (v == null || isNaN(v)) return '';
+    return Number(v).toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
+function numClass(v) {
+    if (v > 0) return 'num-cell num-positive';
+    if (v < 0) return 'num-cell num-negative';
+    return 'num-cell';
+}
+
+function renderDetailTable() {
+    const cols = ['Project', 'Product', 'MtlGroup', 'Material', 'Desc/Spec',
+                  'Prior_Unit Cost', 'Curr_Unit Cost', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff'];
+    const numCols = new Set(['Prior_Unit Cost', 'Curr_Unit Cost', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff']);
+
+    let html = '<table class="data-table"><thead><tr>';
+    for (const c of cols) html += `<th>${c}</th>`;
+    html += '</tr></thead><tbody>';
+
+    for (const row of comparisonResult) {
+        html += '<tr>';
+        for (const c of cols) {
+            if (numCols.has(c)) {
+                const v = row[c] ?? 0;
+                html += `<td class="${numClass(c === 'AmtDiff' ? v : 0)}">${fmtNum(v)}</td>`;
+            } else {
+                html += `<td>${row[c] ?? ''}</td>`;
+            }
+        }
+        html += '</tr>';
+    }
+
+    html += '</tbody></table>';
+    document.getElementById('tableAll').innerHTML = html;
+}
+
+function renderSummaryTable() {
+    const { data, products } = summaryResult;
+    const baseCols = ['Project', 'MtlGroup'];
+
+    let html = '<table class="data-table"><thead><tr>';
+    for (const c of baseCols) html += `<th>${c}</th>`;
+    for (const p of products) html += `<th>${p}</th>`;
+    html += '</tr></thead><tbody>';
+
+    for (const row of data) {
+        html += '<tr>';
+        for (const c of baseCols) html += `<td>${row[c] ?? ''}</td>`;
+        for (const p of products) {
+            const v = row[p] ?? 0;
+            html += `<td class="${numClass(v)}">${fmtNum(v)}</td>`;
+        }
+        html += '</tr>';
+    }
+
+    html += '</tbody></table>';
+    document.getElementById('tableSum').innerHTML = html;
+}
+
+// ========================================
+// Tabs
+// ========================================
+function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach((b, i) => {
+        b.classList.toggle('active', (tab === 'all' && i === 0) || (tab === 'sum' && i === 1));
+    });
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+}
+
+// ========================================
+// Download Excel
+// ========================================
+function downloadExcel(type) {
+    if (!comparisonResult) return;
+
+    let sheetData, fileName;
+
+    if (type === 'all') {
+        // Detail view
+        sheetData = comparisonResult.map(r => ({
+            'Project': r.Project,
+            'Product': r.Product,
+            'MtlGroup': r.MtlGroup,
+            'Material': r.Material,
+            'Desc/Spec': r['Desc/Spec'],
+            'Prior_Unit Cost': r['Prior_Unit Cost'],
+            'Curr_Unit Cost': r['Curr_Unit Cost'],
+            'Prior_Ttl. Usage': r['Prior_Ttl. Usage'],
+            'Curr_Ttl. Usage': r['Curr_Ttl. Usage'],
+            'AmtDiff': r.AmtDiff
+        }));
+        fileName = 'BOM_Comparison_Detail.xlsx';
+    } else {
+        // Summary view
+        const { data, products } = summaryResult;
+        sheetData = data.map(r => {
+            const obj = { 'Project': r.Project, 'MtlGroup': r.MtlGroup };
+            for (const p of products) obj[p] = r[p] ?? 0;
+            return obj;
+        });
+        fileName = 'BOM_Comparison_Summary.xlsx';
+    }
+
+    const ws = XLSX.utils.json_to_sheet(sheetData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'BOM Comparison');
+    XLSX.writeFile(wb, fileName);
+}
+</script>
+
+</body>
+</html>
