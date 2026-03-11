@@ -499,6 +499,31 @@
         }
 
         /* ========================================
+           11b. Summary Toolbar
+        ======================================== */
+        .summary-toolbar {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            margin-bottom: var(--space-xs);
+            flex-wrap: wrap;
+        }
+        .summary-toolbar label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--primary-dark);
+            white-space: nowrap;
+        }
+        .summary-toolbar select {
+            padding: 3px 8px;
+            border: 1px solid var(--primary-pale);
+            border-radius: 4px;
+            font-size: 12px;
+            color: var(--text-primary);
+            background: white;
+        }
+
+        /* ========================================
            12. Summary 統計
         ======================================== */
         .stats-row {
@@ -640,6 +665,14 @@
                     </button>
                 </div>
 
+                <!-- Summary Toolbar -->
+                <div class="summary-toolbar" id="summaryToolbar" style="display:none;">
+                    <label for="projectSelect">Project:</label>
+                    <select id="projectSelect" onchange="onProjectChange(this.value)">
+                        <option value="all">All</option>
+                    </select>
+                </div>
+
                 <!-- Summary Table -->
                 <div class="section-title" data-i18n="summaryTitle">Summary by MtlGroup</div>
                 <div class="table-wrapper" id="tableSum" style="max-height:300px;"></div>
@@ -675,6 +708,7 @@ let comparisonResult = null;
 let summaryResult = null;
 let currentLang = 'en';
 let detailFilter = { product: null, mtlGroup: null };
+let selectedProject = 'all';
 
 // ========================================
 // i18n
@@ -739,9 +773,43 @@ function setLang(lang) {
     });
     // Re-render tables if results exist
     if (comparisonResult) {
+        summaryResult = buildSummary(getFilteredComparison());
         renderStats();
         renderSummaryTable();
     }
+}
+
+// ========================================
+// Project Filter
+// ========================================
+function getFilteredComparison() {
+    if (selectedProject === 'all') return comparisonResult;
+    return comparisonResult.filter(r => r.Project === selectedProject);
+}
+
+function onProjectChange(val) {
+    selectedProject = val;
+    const filtered = getFilteredComparison();
+    summaryResult = buildSummary(filtered);
+    renderStats();
+    renderSummaryTable();
+    detailFilter = { product: null, mtlGroup: null };
+    resetDetailToEmpty();
+}
+
+function populateProjectDropdown() {
+    const projects = [...new Set(comparisonResult.map(r => r.Project))].sort();
+    const sel = document.getElementById('projectSelect');
+    sel.innerHTML = '';
+    if (projects.length === 1) {
+        sel.innerHTML = `<option value="${projects[0]}">${projects[0]}</option>`;
+        selectedProject = projects[0];
+    } else {
+        sel.innerHTML = '<option value="all">All</option>' +
+            projects.map(p => `<option value="${p}">${p}</option>`).join('');
+        selectedProject = 'all';
+    }
+    document.getElementById('summaryToolbar').style.display = 'flex';
 }
 
 // ========================================
@@ -972,7 +1040,9 @@ function runComparison() {
             const currentBOM = processBOM(currentData, 'Curr');
             const priorBOM = processBOM(priorData, 'Old');
             comparisonResult = fullOuterJoin(currentBOM, priorBOM);
-            summaryResult = buildSummary(comparisonResult);
+            populateProjectDropdown();
+            const filtered = getFilteredComparison();
+            summaryResult = buildSummary(filtered);
 
             renderStats();
             renderSummaryTable();
@@ -993,10 +1063,11 @@ function runComparison() {
 // Rendering
 // ========================================
 function renderStats() {
-    const totalAmtDiff = comparisonResult.reduce((s, r) => s + r.AmtDiff, 0);
-    const newItems = comparisonResult.filter(r => r._isNew).length;
-    const removedItems = comparisonResult.filter(r => r._isRemoved).length;
-    const products = [...new Set(comparisonResult.map(r => r.Product))].length;
+    const filtered = getFilteredComparison();
+    const totalAmtDiff = filtered.reduce((s, r) => s + r.AmtDiff, 0);
+    const newItems = filtered.filter(r => r._isNew).length;
+    const removedItems = filtered.filter(r => r._isRemoved).length;
+    const products = [...new Set(filtered.map(r => r.Product))].length;
 
     const fmtAmt = totalAmtDiff.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const amtClass = totalAmtDiff >= 0 ? 'num-positive' : 'num-negative';
@@ -1004,7 +1075,7 @@ function renderStats() {
     document.getElementById('statsRow').innerHTML = `
         <div class="stat-card">
             <div class="stat-label">${t('totalChanges')}</div>
-            <div class="stat-value">${comparisonResult.length}</div>
+            <div class="stat-value">${filtered.length}</div>
         </div>
         <div class="stat-card">
             <div class="stat-label">${t('totalAmtDiff')}</div>
@@ -1085,10 +1156,11 @@ function renderDetailFromFilter() {
     const hasFilter = fp || fm;
 
     const isMtlGroupOnly = fm && !fp;
+    const showProject = selectedProject === 'all';
     const allCols = isMtlGroupOnly
-        ? ['Project', 'Products', 'Material', 'Desc/Spec',
+        ? [...(showProject ? ['Project'] : []), 'Products', 'Material', 'Desc/Spec',
            'Prior_Unit Cost', 'Curr_Unit Cost', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff']
-        : ['Project', 'Product', 'MtlGroup', 'Material', 'Desc/Spec',
+        : [...(showProject ? ['Project'] : []), 'Product', 'MtlGroup', 'Material', 'Desc/Spec',
            'Prior_Unit Cost', 'Curr_Unit Cost', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff'];
     // Hide columns that are active filters
     const hideCols = new Set();
@@ -1099,7 +1171,7 @@ function renderDetailFromFilter() {
     const mergeCols = cols.filter(c => ['Project', 'Product', 'MtlGroup'].includes(c));
 
     // Filter rows
-    let rows = comparisonResult.filter(r => {
+    let rows = getFilteredComparison().filter(r => {
         if (fp && r.Product !== fp) return false;
         if (fm && r.MtlGroup !== fm) return false;
         return true;
@@ -1202,19 +1274,22 @@ function drillDownMtlGroup(mtlGroup) {
 
 function renderSummaryTable() {
     const { data, products } = summaryResult;
-    const baseCols = ['Project', 'MtlGroup'];
+    const showProject = selectedProject === 'all';
+    const baseCols = showProject ? ['Project', 'MtlGroup'] : ['MtlGroup'];
 
     // Compute rowspans for Project column
     const projectSpans = new Array(data.length).fill(1);
-    const skip = new Set();
-    for (let i = 0; i < data.length; i++) {
-        if (skip.has(i)) { projectSpans[i] = 0; continue; }
-        let count = 1;
-        while (i + count < data.length && data[i + count].Project === data[i].Project) {
-            skip.add(i + count);
-            count++;
+    if (showProject) {
+        const skip = new Set();
+        for (let i = 0; i < data.length; i++) {
+            if (skip.has(i)) { projectSpans[i] = 0; continue; }
+            let count = 1;
+            while (i + count < data.length && data[i + count].Project === data[i].Project) {
+                skip.add(i + count);
+                count++;
+            }
+            projectSpans[i] = count;
         }
-        projectSpans[i] = count;
     }
 
     let html = '<table class="data-table"><thead><tr>';
@@ -1225,7 +1300,7 @@ function renderSummaryTable() {
     for (let i = 0; i < data.length; i++) {
         const row = data[i];
         html += '<tr>';
-        if (projectSpans[i] > 0) {
+        if (showProject && projectSpans[i] > 0) {
             const rs = projectSpans[i] > 1 ? ` rowspan="${projectSpans[i]}" style="vertical-align:top;"` : '';
             html += `<td${rs}>${row.Project ?? ''}</td>`;
         }
