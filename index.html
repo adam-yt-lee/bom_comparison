@@ -405,6 +405,15 @@
         .num-negative { color: var(--color-negative); font-weight: 600; }
         .num-cell { text-align: right; font-variant-numeric: tabular-nums; }
 
+        .data-table tfoot td {
+            font-weight: 700;
+            border-top: 2px solid var(--primary-light);
+            background: var(--primary-pale);
+            position: sticky;
+            bottom: 0;
+            z-index: 1;
+        }
+
         /* ========================================
            10. 狀態訊息
         ======================================== */
@@ -1160,7 +1169,23 @@ function renderDetailFromFilter() {
         html += '</tr>';
     }
 
-    html += '</tbody></table></div>';
+    // Total row
+    const sumCols = ['AmtDiff'];
+    const totals = {};
+    for (const c of sumCols) totals[c] = rows.reduce((s, r) => s + (r[c] ?? 0), 0);
+    const nonNumCount = cols.filter(c => !numCols.has(c) && c !== 'Products').length + (cols.includes('Products') ? 1 : 0);
+    html += '</tbody><tfoot><tr>';
+    html += `<td colspan="${nonNumCount}" style="text-align:right;">Total</td>`;
+    for (const c of cols) {
+        if (!numCols.has(c)) continue;
+        if (sumCols.includes(c)) {
+            const v = totals[c];
+            html += `<td class="${numClass(v)}">${fmtNum(v)}</td>`;
+        } else {
+            html += '<td></td>';
+        }
+    }
+    html += '</tr></tfoot></table></div>';
     document.getElementById('detailContent').innerHTML = html;
     renderFilterTags();
     document.getElementById('detailContent').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1215,7 +1240,14 @@ function renderSummaryTable() {
         html += '</tr>';
     }
 
-    html += '</tbody></table>';
+    // Total row
+    html += '</tbody><tfoot><tr>';
+    html += `<td colspan="${baseCols.length}" style="text-align:right;">Total</td>`;
+    for (const p of products) {
+        const total = data.reduce((s, r) => s + (r[p] ?? 0), 0);
+        html += `<td class="${numClass(total)}">${fmtNum(total)}</td>`;
+    }
+    html += '</tr></tfoot></table>';
     document.getElementById('tableSum').innerHTML = html;
 }
 
