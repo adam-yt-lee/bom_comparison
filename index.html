@@ -449,6 +449,46 @@
             font-size: 13px;
         }
 
+        .filter-tags {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .filter-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: var(--primary-pale);
+            color: var(--primary-dark);
+            border: 1px solid var(--primary-light);
+            border-radius: var(--radius-pill);
+            padding: 2px 6px 2px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .filter-tag .tag-close {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: transparent;
+            border: none;
+            color: var(--primary-dark);
+            font-size: 11px;
+            cursor: pointer;
+            transition: background 0.15s;
+            padding: 0;
+            line-height: 1;
+        }
+        .filter-tag .tag-close:hover {
+            background: var(--primary-light);
+            color: white;
+        }
+
         /* ========================================
            12. Summary 統計
         ======================================== */
@@ -599,11 +639,10 @@
                 <div style="margin-top:var(--space-sm);">
                     <div class="section-title" style="display:flex; align-items:center; gap:var(--space-sm);">
                         <span data-i18n="detailTitle">All Changes (Detail)</span>
-                        <span id="detailFilterInfo" class="filter-label" style="font-size:13px; font-weight:400; color:var(--primary-accent);"></span>
-                        <button id="clearFilterBtn" class="btn btn-option" style="display:none; margin-left:auto; font-size:11px; padding:4px 10px;" onclick="clearDetailFilter()">✕ Clear</button>
+                        <div id="detailFilterBar" class="filter-tags"></div>
                     </div>
                     <div id="detailContent">
-                        <div class="detail-empty-hint" id="detailEmptyHint" data-i18n="detailHint">Click a value in the summary table above to view details</div>
+                        <div class="detail-empty-hint" data-i18n="detailHint">Click a value in the summary table to view details</div>
                     </div>
                 </div>
             </div>
@@ -626,6 +665,7 @@ let priorData = null;
 let comparisonResult = null;
 let summaryResult = null;
 let currentLang = 'en';
+let detailFilter = { product: null, mtlGroup: null };
 
 // ========================================
 // i18n
@@ -928,10 +968,8 @@ function runComparison() {
             renderStats();
             renderSummaryTable();
             // Detail starts empty — user clicks summary to drill down
-            document.getElementById('detailContent').innerHTML =
-                `<div class="detail-empty-hint" id="detailEmptyHint" data-i18n="detailHint">${t('detailHint')}</div>`;
-            document.getElementById('detailFilterInfo').textContent = '';
-            document.getElementById('clearFilterBtn').style.display = 'none';
+            detailFilter = { product: null, mtlGroup: null };
+            resetDetailToEmpty();
 
             document.getElementById('resultSection').classList.add('visible');
             showStatus(t('done') + ' — ' + comparisonResult.length + ' changes found', 'success');
@@ -989,20 +1027,84 @@ function numClass(v) {
     return 'num-cell';
 }
 
-function renderDetailTable(filterProduct, filterMtlGroup) {
-    const isFiltered = filterProduct != null && filterMtlGroup != null;
+// ========================================
+// Filter State & Tags
+// ========================================
+function setFilter(key, value) {
+    detailFilter[key] = value;
+    renderDetailFromFilter();
+}
+
+function removeFilter(key) {
+    detailFilter[key] = null;
+    if (!detailFilter.product && !detailFilter.mtlGroup) {
+        resetDetailToEmpty();
+    } else {
+        renderDetailFromFilter();
+    }
+}
+
+function clearAllFilters() {
+    detailFilter = { product: null, mtlGroup: null };
+    resetDetailToEmpty();
+}
+
+function resetDetailToEmpty() {
+    document.getElementById('detailContent').innerHTML =
+        `<div class="detail-empty-hint" data-i18n="detailHint">${t('detailHint')}</div>`;
+    renderFilterTags();
+}
+
+function renderFilterTags() {
+    const bar = document.getElementById('detailFilterBar');
+    const hasFilter = detailFilter.product || detailFilter.mtlGroup;
+    if (!hasFilter) { bar.innerHTML = ''; return; }
+
+    let html = `<button class="btn btn-option" style="font-size:11px; padding:2px 8px;" onclick="clearAllFilters()">✕</button>`;
+    if (detailFilter.product) {
+        html += `<span class="filter-tag">Product: ${detailFilter.product}<button class="tag-close" onclick="removeFilter('product')">✕</button></span>`;
+    }
+    if (detailFilter.mtlGroup) {
+        html += `<span class="filter-tag">MtlGroup: ${detailFilter.mtlGroup}<button class="tag-close" onclick="removeFilter('mtlGroup')">✕</button></span>`;
+    }
+    bar.innerHTML = html;
+}
+
+function renderDetailFromFilter() {
+    const fp = detailFilter.product;
+    const fm = detailFilter.mtlGroup;
+    const hasFilter = fp || fm;
+
     const allCols = ['Project', 'Product', 'MtlGroup', 'Material', 'Desc/Spec',
                   'Prior_Unit Cost', 'Curr_Unit Cost', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff'];
-    // When filtered, hide Product & MtlGroup columns
-    const hideCols = isFiltered ? new Set(['Product', 'MtlGroup']) : new Set();
+    // Hide columns that are active filters
+    const hideCols = new Set();
+    if (fp) hideCols.add('Product');
+    if (fm) hideCols.add('MtlGroup');
     const cols = allCols.filter(c => !hideCols.has(c));
     const numCols = new Set(['Prior_Unit Cost', 'Curr_Unit Cost', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff']);
     const mergeCols = cols.filter(c => ['Project', 'Product', 'MtlGroup'].includes(c));
 
     // Filter rows
-    let rows = comparisonResult;
-    if (isFiltered) {
-        rows = rows.filter(r => r.Product === filterProduct && r.MtlGroup === filterMtlGroup);
+    let rows = comparisonResult.filter(r => {
+        if (fp && r.Product !== fp) return false;
+        if (fm && r.MtlGroup !== fm) return false;
+        return true;
+    });
+
+    // Dedup when filtering by MtlGroup only (no product): collapse rows with same Material + same Usage
+    if (fm && !fp) {
+        const seen = {};
+        const deduped = [];
+        for (const r of rows) {
+            const key = r.Material + '|' + r['Prior_Unit Cost'] + '|' + r['Curr_Unit Cost']
+                      + '|' + r['Prior_Ttl. Usage'] + '|' + r['Curr_Ttl. Usage'];
+            if (!seen[key]) {
+                seen[key] = true;
+                deduped.push(r);
+            }
+        }
+        rows = deduped;
     }
 
     // Pre-compute rowspans for merge columns
@@ -1044,22 +1146,19 @@ function renderDetailTable(filterProduct, filterMtlGroup) {
     }
 
     html += '</tbody></table></div>';
-
-    // Update UI
     document.getElementById('detailContent').innerHTML = html;
-    document.getElementById('detailFilterInfo').textContent =
-        isFiltered ? `— ${filterProduct} / ${filterMtlGroup}` : '';
-    document.getElementById('clearFilterBtn').style.display = isFiltered ? 'inline-block' : 'none';
-}
-
-function drillDown(product, mtlGroup) {
-    renderDetailTable(product, mtlGroup);
-    // Scroll detail into view
+    renderFilterTags();
     document.getElementById('detailContent').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-function clearDetailFilter() {
-    renderDetailTable();
+function drillDown(product, mtlGroup) {
+    detailFilter = { product: product, mtlGroup: mtlGroup };
+    renderDetailFromFilter();
+}
+
+function drillDownMtlGroup(mtlGroup) {
+    detailFilter = { product: null, mtlGroup: mtlGroup };
+    renderDetailFromFilter();
 }
 
 function renderSummaryTable() {
@@ -1087,16 +1186,15 @@ function renderSummaryTable() {
     for (let i = 0; i < data.length; i++) {
         const row = data[i];
         html += '<tr>';
-        // Project with rowspan
         if (projectSpans[i] > 0) {
             const rs = projectSpans[i] > 1 ? ` rowspan="${projectSpans[i]}" style="vertical-align:top;"` : '';
             html += `<td${rs}>${row.Project ?? ''}</td>`;
         }
-        html += `<td>${row.MtlGroup ?? ''}</td>`;
+        const escaped_mg = (row.MtlGroup ?? '').replace(/'/g, "\\'");
+        html += `<td class="summary-clickable" onclick="drillDownMtlGroup('${escaped_mg}')">${row.MtlGroup ?? ''}</td>`;
         for (const p of products) {
             const v = row[p] ?? 0;
             const escaped_p = p.replace(/'/g, "\\'");
-            const escaped_mg = (row.MtlGroup ?? '').replace(/'/g, "\\'");
             html += `<td class="${numClass(v)} summary-clickable" onclick="drillDown('${escaped_p}','${escaped_mg}')">${fmtNum(v)}</td>`;
         }
         html += '</tr>';
