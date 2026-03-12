@@ -861,10 +861,14 @@ function getFilteredComparison() {
     if (selectedProject !== 'all') {
         rows = rows.filter(r => r.Project === selectedProject);
     }
-    // Threshold filter on detail rows: hide where BOTH |Change%| <= pct AND |AmtDiff| <= amt
+    // Threshold filter on detail rows: hide where BOTH |DiffPrice%| <= pct AND |AmtDiff| <= amt
     if (thresholdPct > 0 || thresholdAmt > 0) {
         rows = rows.filter(r => {
             const absAmt = Math.abs(r.AmtDiff);
+            // If either price is null, skip price% threshold (always keep the row based on amt only)
+            if (r['Prior_Unit Cost'] === null || r['Curr_Unit Cost'] === null) {
+                return !(absAmt <= thresholdAmt);
+            }
             const priorCost = r['Prior_Unit Cost'] || 0;
             const absPct = priorCost === 0 ? Infinity : Math.abs((r['Curr_Unit Cost'] - priorCost) / priorCost) * 100;
             return !(absPct <= thresholdPct && absAmt <= thresholdAmt);
@@ -1047,8 +1051,8 @@ function fullOuterJoin(currentBOM, priorBOM) {
         const curr = currentMap[key] || null;
         const prior = priorMap[key] || null;
 
-        const currPrice = curr ? (curr.Curr_Price ?? 0) : 0;
-        const oldPrice = prior ? (prior.Old_Price ?? 0) : 0;
+        const currPrice = curr ? (curr.Curr_Price ?? 0) : null;
+        const oldPrice = prior ? (prior.Old_Price ?? 0) : null;
         const currQty = curr ? (curr.Curr_Qty ?? 0) : 0;
         const oldQty = prior ? (prior.Old_Qty ?? 0) : 0;
 
@@ -1072,7 +1076,7 @@ function fullOuterJoin(currentBOM, priorBOM) {
                 'Curr_Unit Cost': currPrice,
                 'Prior_Ttl. Usage': oldQty,
                 'Curr_Ttl. Usage': currQty,
-                AmtDiff: (currPrice * currQty) - (oldPrice * oldQty),
+                AmtDiff: ((currPrice ?? 0) * currQty) - ((oldPrice ?? 0) * oldQty),
                 _isNew: !prior,
                 _isRemoved: !curr,
             });
@@ -1248,15 +1252,15 @@ function renderDetailFromFilter() {
     const showProject = selectedProject === 'all';
     const allCols = isMtlGroupOnly
         ? [...(showProject ? ['Project'] : []), 'Products', 'Material', 'Desc/Spec',
-           'Prior_Unit Cost', 'Curr_Unit Cost', 'Change%', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff']
+           'Prior_Unit Cost', 'Curr_Unit Cost', 'DiffPrice%', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff']
         : [...(showProject ? ['Project'] : []), 'Product', 'MtlGroup', 'Material', 'Desc/Spec',
-           'Prior_Unit Cost', 'Curr_Unit Cost', 'Change%', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff'];
+           'Prior_Unit Cost', 'Curr_Unit Cost', 'DiffPrice%', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff'];
     // Hide columns that are active filters
     const hideCols = new Set();
     if (fp) hideCols.add('Product');
     if (fm) hideCols.add('MtlGroup');
     const cols = allCols.filter(c => !hideCols.has(c));
-    const numCols = new Set(['Prior_Unit Cost', 'Curr_Unit Cost', 'Change%', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff']);
+    const numCols = new Set(['Prior_Unit Cost', 'Curr_Unit Cost', 'DiffPrice%', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff']);
     const mergeCols = cols.filter(c => ['Project', 'Product', 'MtlGroup'].includes(c));
 
     // Filter rows (threshold already applied in getFilteredComparison)
@@ -1266,11 +1270,15 @@ function renderDetailFromFilter() {
         return true;
     });
 
-    // Compute Change% for each row
+    // Compute DiffPrice% for each row (skip if either price is null)
     for (const r of rows) {
-        const prior = r['Prior_Unit Cost'] || 0;
-        r['Change%'] = prior === 0 ? (r['Curr_Unit Cost'] ? Infinity : 0)
-            : ((r['Curr_Unit Cost'] - prior) / Math.abs(prior)) * 100;
+        if (r['Prior_Unit Cost'] === null || r['Curr_Unit Cost'] === null) {
+            r['DiffPrice%'] = null;
+        } else {
+            const prior = r['Prior_Unit Cost'] || 0;
+            r['DiffPrice%'] = prior === 0 ? (r['Curr_Unit Cost'] ? Infinity : 0)
+                : ((r['Curr_Unit Cost'] - prior) / Math.abs(prior)) * 100;
+        }
     }
 
     // Dedup when filtering by MtlGroup only (no product): collapse rows with same Material + same Usage
@@ -1315,7 +1323,12 @@ function renderDetailFromFilter() {
     const priceRows = []; // qty same, price different
     const bothRows = [];  // both different
     for (const r of rows) {
-        const priceSame = (r['Prior_Unit Cost'] || 0) === (r['Curr_Unit Cost'] || 0);
+        const priorPrice = r['Prior_Unit Cost'];
+        const currPrice = r['Curr_Unit Cost'];
+        // If either price is null, treat prices as "same" (item only exists on one side)
+        const priceSame = (priorPrice === null || currPrice === null)
+            ? true
+            : (priorPrice || 0) === (currPrice || 0);
         const qtySame = (r['Prior_Ttl. Usage'] || 0) === (r['Curr_Ttl. Usage'] || 0);
         if (priceSame && !qtySame) qtyRows.push(r);
         else if (!priceSame && qtySame) priceRows.push(r);
@@ -1327,11 +1340,11 @@ function renderDetailFromFilter() {
         r._QtyDiff = (r['Curr_Ttl. Usage'] || 0) - (r['Prior_Ttl. Usage'] || 0);
     }
     for (const r of priceRows) {
-        r._PriceDiff = (r['Curr_Unit Cost'] || 0) - (r['Prior_Unit Cost'] || 0);
+        r._PriceDiff = (r['Curr_Unit Cost'] ?? 0) - (r['Prior_Unit Cost'] ?? 0);
     }
     for (const r of bothRows) {
         r._QtyDiff = (r['Curr_Ttl. Usage'] || 0) - (r['Prior_Ttl. Usage'] || 0);
-        r._PriceDiff = (r['Curr_Unit Cost'] || 0) - (r['Prior_Unit Cost'] || 0);
+        r._PriceDiff = (r['Curr_Unit Cost'] ?? 0) - (r['Prior_Unit Cost'] ?? 0);
     }
 
     // Build sub-table HTML
@@ -1368,17 +1381,26 @@ function renderDetailFromFilter() {
                 } else if (c === 'Products') {
                     const val = String(row._affectedProducts ?? '').replace(/\n/g, '<br>');
                     h += `<td style="white-space:pre-line;font-size:11px;color:var(--text-secondary);">${val}</td>`;
-                } else if (c === 'Change%') {
-                    const v = row[c] ?? 0;
-                    const display = isFinite(v) ? fmtNum(v) + '%' : 'NEW';
-                    const tip = isFinite(v) ? fmtNum(v, 5) + '%' : 'NEW';
-                    h += `<td class="${numClass(v)}" title="${tip}">${display}</td>`;
+                } else if (c === 'DiffPrice%') {
+                    const v = row[c];
+                    if (v === null || v === undefined) {
+                        h += `<td style="text-align:right;font-style:italic;color:var(--text-secondary);">null</td>`;
+                    } else {
+                        const display = isFinite(v) ? fmtNum(v) + '%' : 'NEW';
+                        const tip = isFinite(v) ? fmtNum(v, 5) + '%' : 'NEW';
+                        h += `<td class="${numClass(v)}" title="${tip}">${display}</td>`;
+                    }
                 } else if (extraCols[c]) {
                     const v = row[extraCols[c]] ?? 0;
                     h += `<td class="${numClass(v)}" title="${fmtNum(v, 5)}">${fmtNum(v)}</td>`;
                 } else if (secNumCols.has(c)) {
-                    const v = row[c] ?? 0;
-                    h += `<td class="${numClass(c === 'AmtDiff' ? v : 0)}" title="${fmtNum(v, 5)}">${fmtNum(v)}</td>`;
+                    const v = row[c];
+                    if (v === null && (c === 'Prior_Unit Cost' || c === 'Curr_Unit Cost')) {
+                        h += `<td style="text-align:right;font-style:italic;color:var(--text-secondary);">null</td>`;
+                    } else {
+                        const nv = v ?? 0;
+                        h += `<td class="${numClass(c === 'AmtDiff' ? nv : 0)}" title="${fmtNum(nv, 5)}">${fmtNum(nv)}</td>`;
+                    }
                 } else {
                     h += `<td>${row[c] ?? ''}</td>`;
                 }
@@ -1408,7 +1430,7 @@ function renderDetailFromFilter() {
 
     // Define columns per section
     // qtyRows: hide price cols, show QtyDiff
-    const qtyOnlyCols = cols.filter(c => c !== 'Prior_Unit Cost' && c !== 'Curr_Unit Cost' && c !== 'Change%');
+    const qtyOnlyCols = cols.filter(c => c !== 'Prior_Unit Cost' && c !== 'Curr_Unit Cost' && c !== 'DiffPrice%');
     // Insert QtyDiff before AmtDiff
     const qtyIdx = qtyOnlyCols.indexOf('AmtDiff');
     if (qtyIdx >= 0) qtyOnlyCols.splice(qtyIdx, 0, 'QtyDiff');
@@ -1565,9 +1587,13 @@ function downloadExcel() {
 
     // Sheet 2: Detail
     const detailData = comparisonResult.map(r => {
-        const prior = r['Prior_Unit Cost'] || 0;
-        const changePct = prior === 0 ? (r['Curr_Unit Cost'] ? Infinity : 0)
-            : ((r['Curr_Unit Cost'] - prior) / Math.abs(prior)) * 100;
+        let diffPricePct = null;
+        if (r['Prior_Unit Cost'] !== null && r['Curr_Unit Cost'] !== null) {
+            const prior = r['Prior_Unit Cost'] || 0;
+            diffPricePct = prior === 0 ? (r['Curr_Unit Cost'] ? Infinity : 0)
+                : ((r['Curr_Unit Cost'] - prior) / Math.abs(prior)) * 100;
+            if (!isFinite(diffPricePct)) diffPricePct = null;
+        }
         return {
             'Project': r.Project,
             'Product': r.Product,
@@ -1576,7 +1602,7 @@ function downloadExcel() {
             'Desc/Spec': r['Desc/Spec'],
             'Prior_Unit Cost': r['Prior_Unit Cost'],
             'Curr_Unit Cost': r['Curr_Unit Cost'],
-            'Change%': isFinite(changePct) ? changePct : null,
+            'DiffPrice%': diffPricePct,
             'Prior_Ttl. Usage': r['Prior_Ttl. Usage'],
             'Curr_Ttl. Usage': r['Curr_Ttl. Usage'],
             'AmtDiff': r.AmtDiff
