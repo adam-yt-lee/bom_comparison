@@ -1526,15 +1526,15 @@ function renderDetailFromFilter() {
     }
 
     // Define columns per section
-    // qtyRows: hide price cols, show QtyDiff
-    const qtyOnlyCols = cols.filter(c => c !== 'Prior_Unit Cost' && c !== 'Curr_Unit Cost' && c !== 'DiffPrice%');
+    // qtyRows: show Unit Cost, show QtyDiff
+    const qtyOnlyCols = [...cols];
     // Insert QtyDiff before AmtDiff
     const qtyIdx = qtyOnlyCols.indexOf('AmtDiff');
     if (qtyIdx >= 0) qtyOnlyCols.splice(qtyIdx, 0, 'QtyDiff');
     const qtyNumCols = new Set([...numCols, 'QtyDiff']);
 
-    // priceRows: hide qty cols, show PriceDiff
-    const priceOnlyCols = cols.filter(c => c !== 'Prior_Ttl. Usage' && c !== 'Curr_Ttl. Usage');
+    // priceRows: show Ttl. Usage, show PriceDiff
+    const priceOnlyCols = [...cols];
     const priceIdx = priceOnlyCols.indexOf('AmtDiff');
     if (priceIdx >= 0) priceOnlyCols.splice(priceIdx, 0, 'PriceDiff');
     const priceNumCols = new Set([...numCols, 'PriceDiff']);
