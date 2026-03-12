@@ -1320,6 +1320,11 @@ function drillDown(product, mtlGroup) {
     renderDetailFromFilter();
 }
 
+function drillDownProduct(product) {
+    detailFilter = { product: product, mtlGroup: null };
+    renderDetailFromFilter();
+}
+
 function drillDownMtlGroup(mtlGroup) {
     detailFilter = { product: null, mtlGroup: mtlGroup };
     renderDetailFromFilter();
@@ -1372,7 +1377,8 @@ function renderSummaryTable() {
     html += `<td colspan="${baseCols.length}" style="text-align:right;">Total</td>`;
     for (const p of products) {
         const total = data.reduce((s, r) => s + (r[p] ?? 0), 0);
-        html += `<td class="${numClass(total)}" title="${fmtNum(total, 5)}">${fmtNum(total)}</td>`;
+        const escaped_p = String(p).replace(/'/g, "\\'");
+        html += `<td class="${numClass(total)} summary-clickable" onclick="drillDownProduct('${escaped_p}')" title="${fmtNum(total, 5)}">${fmtNum(total)}</td>`;
     }
     html += '</tr></tfoot></table>';
     document.getElementById('tableSum').innerHTML = html;
