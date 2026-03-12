@@ -415,13 +415,18 @@
             border-bottom: 1px solid #f0f0f0;
         }
 
-        .data-table tbody td {
+        .data-table tbody tr:hover {
+            background: var(--primary-pale);
+        }
+
+        .data-table tbody tr {
             background: white;
         }
-        .data-table tbody tr:nth-child(even) td {
+        .data-table tbody tr:nth-child(even) {
             background: #fafff6;
         }
-        .data-table tbody tr:hover td {
+        .data-table tbody tr:hover,
+        .data-table tbody tr:nth-child(even):hover {
             background: var(--primary-pale);
         }
 
@@ -442,6 +447,12 @@
         .data-table .sticky-col {
             position: sticky;
             z-index: 1;
+        }
+        .data-table tbody tr .sticky-col {
+            background: white;
+        }
+        .data-table tbody tr:nth-child(even) .sticky-col {
+            background: #fafff6;
         }
         .data-table tbody tr:hover .sticky-col {
             background: var(--primary-pale);
@@ -1145,30 +1156,43 @@ function buildSummary(comparison) {
 // ========================================
 // Main Comparison
 // ========================================
-// Merge products: group rows by all fields except Product, then concatenate Product names with \n
+// Merge products only when ALL their rows (summary & details) are completely identical
 function mergeIdenticalProducts(rows) {
-    const groups = {};
+    // Group rows by Project + Product
+    const productRows = {};
     for (const r of rows) {
-        // Key = all fields except Product (and internal flags)
-        const key = [
-            r.Project, r.MtlGroup, r.Material, r['Desc/Spec'],
-            r['Prior_Unit Cost'], r['Curr_Unit Cost'],
-            r['Prior_Ttl. Usage'], r['Curr_Ttl. Usage']
-        ].join('||');
-        if (!groups[key]) {
-            groups[key] = { ...r, _products: new Set([String(r.Product)]) };
-        } else {
-            groups[key]._products.add(String(r.Product));
+        const key = r.Project + '||' + String(r.Product);
+        if (!productRows[key]) productRows[key] = { project: r.Project, product: String(r.Product), rows: [] };
+        productRows[key].rows.push(r);
+    }
+
+    // Create fingerprint for each product: sorted list of all detail rows (everything except Product)
+    for (const entry of Object.values(productRows)) {
+        entry.fingerprint = entry.rows.map(r =>
+            [r.MtlGroup, r.Material, r['Desc/Spec'],
+             r['Prior_Unit Cost'], r['Curr_Unit Cost'],
+             r['Prior_Ttl. Usage'], r['Curr_Ttl. Usage']].join('|')
+        ).sort().join('\n');
+    }
+
+    // Group products with identical fingerprints within same project
+    const fpGroups = {};
+    for (const entry of Object.values(productRows)) {
+        const fpKey = entry.project + '|||' + entry.fingerprint;
+        if (!fpGroups[fpKey]) fpGroups[fpKey] = [];
+        fpGroups[fpKey].push(entry);
+    }
+
+    // Build result: for each fingerprint group, take rows from first product with merged Product name
+    const result = [];
+    for (const group of Object.values(fpGroups)) {
+        const mergedName = group.map(e => e.product).sort().join('\n');
+        for (const r of group[0].rows) {
+            result.push({ ...r, Product: mergedName });
         }
     }
 
-    const result = Object.values(groups).map(g => {
-        const merged = [...g._products].sort().join('\n');
-        const { _products, ...rest } = g;
-        return { ...rest, Product: merged };
-    });
-
-    // Sort by MtlGroup, Material
+    // Re-sort by MtlGroup, Material
     result.sort((a, b) => {
         const mg = String(a.MtlGroup).localeCompare(String(b.MtlGroup));
         if (mg !== 0) return mg;
