@@ -89,7 +89,7 @@
            4. 主容器
         ======================================== */
         .container {
-            max-width: 1200px;
+            max-width: 1600px;
             margin: 0 auto;
             background: var(--bg-container);
             border-radius: var(--radius-lg);
@@ -281,6 +281,24 @@
         .upload-box.loaded {
             border-color: var(--primary);
             background: var(--primary-pale);
+            padding: var(--space-xs) var(--space-sm);
+        }
+
+        .upload-box.loaded .upload-icon,
+        .upload-box.loaded .upload-hint {
+            display: none;
+        }
+
+        .upload-box.loaded .upload-label {
+            font-size: 12px;
+            margin-bottom: 0;
+            display: inline;
+        }
+
+        .upload-box.loaded .upload-filename {
+            display: inline;
+            margin-top: 0;
+            margin-left: 6px;
         }
 
         .upload-box input[type="file"] {
@@ -336,6 +354,31 @@
             border-bottom: 2px solid var(--primary-pale);
         }
 
+        .detail-section {
+            margin-bottom: var(--space-md);
+        }
+        .detail-section-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-primary);
+            padding: 6px 12px;
+            border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .detail-section-title .badge {
+            font-size: 11px;
+            font-weight: 600;
+            background: var(--primary-pale);
+            color: var(--primary-dark);
+            padding: 1px 8px;
+            border-radius: 10px;
+        }
+        .sec-qty .detail-section-title { background: #e3f2fd; color: #1565c0; }
+        .sec-price .detail-section-title { background: #fff3e0; color: #e65100; }
+        .sec-both .detail-section-title { background: #fce4ec; color: #c62828; }
+
         .table-wrapper {
             overflow-x: auto;
             border-radius: var(--radius-sm);
@@ -361,14 +404,14 @@
         .data-table th {
             background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
             color: white;
-            padding: 10px 14px;
+            padding: 8px 10px;
             text-align: left;
             font-weight: 600;
             font-size: 12px;
         }
 
         .data-table td {
-            padding: 8px 14px;
+            padding: 6px 10px;
             border-bottom: 1px solid #f0f0f0;
         }
 
@@ -376,9 +419,13 @@
             background: var(--primary-pale);
         }
 
+        .data-table tbody tr {
+            background: white;
+        }
         .data-table tbody tr:nth-child(even) {
             background: #fafff6;
         }
+        .data-table tbody tr:hover,
         .data-table tbody tr:nth-child(even):hover {
             background: var(--primary-pale);
         }
@@ -386,6 +433,28 @@
         .num-positive { color: var(--color-positive); font-weight: 600; }
         .num-negative { color: var(--color-negative); font-weight: 600; }
         .num-cell { text-align: right; font-variant-numeric: tabular-nums; }
+
+        .data-table tfoot td {
+            font-weight: 700;
+            border-top: 2px solid var(--primary-light);
+            background: var(--primary-pale);
+            position: sticky;
+            bottom: 0;
+            z-index: 1;
+        }
+
+        /* Sticky left columns for summary pivot table */
+        .data-table .sticky-col {
+            position: sticky;
+            background: inherit;
+            z-index: 1;
+        }
+        .data-table thead .sticky-col {
+            z-index: 3;
+        }
+        .data-table tfoot .sticky-col {
+            z-index: 2;
+        }
 
         /* ========================================
            10. 狀態訊息
@@ -413,65 +482,155 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* ========================================
-           11. Tab 切換
-        ======================================== */
-        .tab-group {
-            display: flex;
-            gap: 2px;
-            margin-bottom: var(--space-md);
-            background: var(--primary-pale);
-            border-radius: var(--radius-sm);
-            padding: 3px;
-        }
+        /* (Tabs removed - both views shown inline) */
 
-        .tab-btn {
-            flex: 1;
-            padding: 10px 16px;
-            border: none;
-            background: transparent;
-            color: var(--primary-dark);
-            font-weight: 600;
-            font-size: 13px;
+        /* Pivot-style expand/collapse */
+        .pivot-toggle {
             cursor: pointer;
-            border-radius: 6px;
-            transition: var(--transition);
+            user-select: none;
+        }
+        .pivot-toggle .pivot-arrow {
+            display: inline-block;
+            width: 14px;
+            font-size: 10px;
+            color: var(--text-muted);
+            transition: transform 0.2s;
+        }
+        .pivot-toggle.collapsed .pivot-arrow {
+            transform: rotate(-90deg);
         }
 
-        .tab-btn:hover { background: rgba(255,255,255,0.5); }
-        .tab-btn.active { background: white; box-shadow: var(--shadow-sm); }
+        .summary-clickable {
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .summary-clickable:hover {
+            background: var(--primary-pale) !important;
+            text-decoration: underline;
+        }
 
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
+        .detail-empty-hint {
+            text-align: center;
+            padding: var(--space-md);
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .filter-tags {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .filter-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: var(--primary-pale);
+            color: var(--primary-dark);
+            border: 1px solid var(--primary-light);
+            border-radius: var(--radius-pill);
+            padding: 2px 6px 2px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .filter-tag .tag-close {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: transparent;
+            border: none;
+            color: var(--primary-dark);
+            font-size: 11px;
+            cursor: pointer;
+            transition: background 0.15s;
+            padding: 0;
+            line-height: 1;
+        }
+        .filter-tag .tag-close:hover {
+            background: var(--primary-light);
+            color: white;
+        }
+
+        /* ========================================
+           11b. Summary Toolbar
+        ======================================== */
+        .summary-toolbar {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            margin-bottom: var(--space-xs);
+            flex-wrap: wrap;
+        }
+        .summary-toolbar label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--primary-dark);
+            white-space: nowrap;
+        }
+        .summary-toolbar select,
+        .summary-toolbar input[type="number"] {
+            padding: 3px 8px;
+            border: 1px solid var(--primary-pale);
+            border-radius: 4px;
+            font-size: 12px;
+            color: var(--text-primary);
+            background: white;
+        }
+        .summary-toolbar input[type="number"] {
+            width: 70px;
+            text-align: right;
+        }
+        .toolbar-left, .toolbar-right {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .toolbar-right {
+            margin-left: auto;
+        }
+        .toolbar-separator {
+            width: 1px;
+            height: 16px;
+            background: var(--primary-pale);
+            margin: 0 4px;
+        }
 
         /* ========================================
            12. Summary 統計
         ======================================== */
         .stats-row {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: var(--space-sm);
-            margin-bottom: var(--space-md);
+            grid-template-columns: repeat(5, 1fr);
+            gap: var(--space-xs);
+            margin-bottom: var(--space-sm);
         }
 
         .stat-card {
             background: white;
             border: 1px solid var(--primary-pale);
-            border-radius: var(--radius-sm);
-            padding: var(--space-sm) var(--space-md);
+            border-radius: 6px;
+            padding: 4px var(--space-sm);
             text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
         }
 
         .stat-value {
-            font-size: 22px;
+            font-size: 15px;
             font-weight: 700;
             color: var(--primary-dark);
         }
 
         .stat-label {
-            font-size: 12px;
+            font-size: 11px;
             color: var(--text-muted);
-            margin-top: 2px;
         }
 
         /* ========================================
@@ -552,9 +711,12 @@
             </div>
 
             <!-- Action Buttons -->
-            <div class="btn-group">
+            <div class="btn-group" style="align-items: center;">
                 <button class="btn btn-primary" id="compareBtn" onclick="runComparison()" disabled>
                     <span data-i18n="compare">Compare</span>
+                </button>
+                <button class="btn btn-option" onclick="downloadTemplate()" style="font-size:11px; padding:4px 10px; margin-left:auto;" title="Download template with required columns">
+                    <span data-i18n="downloadTemplate">Template (.xlsx)</span>
                 </button>
             </div>
 
@@ -570,32 +732,44 @@
                 <!-- Stats -->
                 <div class="stats-row" id="statsRow"></div>
 
-                <!-- Tabs -->
-                <div class="tab-group">
-                    <button class="tab-btn active" onclick="switchTab('all')" data-i18n="detailTab">Detail (All Changes)</button>
-                    <button class="tab-btn" onclick="switchTab('sum')" data-i18n="summaryTab">Summary (By MtlGroup)</button>
-                </div>
-
-                <!-- Download Buttons -->
-                <div class="btn-group mb-md">
-                    <button class="btn btn-secondary" onclick="downloadExcel('all')">
-                        <span data-i18n="downloadDetail">Download Detail (.xlsx)</span>
-                    </button>
-                    <button class="btn btn-secondary" onclick="downloadExcel('sum')">
-                        <span data-i18n="downloadSummary">Download Summary (.xlsx)</span>
+                <!-- Download Button -->
+                <div class="btn-group mb-md" style="justify-content: flex-end;">
+                    <button class="btn btn-option" onclick="downloadExcel()" style="font-size:12px; padding:4px 12px;">
+                        <span data-i18n="downloadAll">Download (.xlsx)</span>
                     </button>
                 </div>
 
-                <!-- Detail Table -->
-                <div class="tab-content active" id="tab-all">
-                    <div class="section-title" data-i18n="detailTitle">BOM Comparison - All Changes</div>
-                    <div class="table-wrapper" id="tableAll"></div>
+                <!-- Summary Toolbar -->
+                <div class="summary-toolbar" id="summaryToolbar" style="display:none;">
+                    <div class="toolbar-left">
+                        <label for="projectSelect">Project:</label>
+                        <select id="projectSelect" onchange="onProjectChange(this.value)">
+                            <option value="all">All</option>
+                        </select>
+                    </div>
+                    <div class="toolbar-right">
+                        <label>Threshold:</label>
+                        <input type="number" id="thresholdPct" value="3" min="0" step="0.1" onchange="onThresholdChange()" title="Change % threshold">
+                        <label>%</label>
+                        <div class="toolbar-separator"></div>
+                        <input type="number" id="thresholdAmt" value="0.01" min="0" step="0.01" onchange="onThresholdChange()" title="Change amount threshold">
+                        <label>Amt</label>
+                    </div>
                 </div>
 
                 <!-- Summary Table -->
-                <div class="tab-content" id="tab-sum">
-                    <div class="section-title" data-i18n="summaryTitle">BOM Comparison - Summary by MtlGroup</div>
-                    <div class="table-wrapper" id="tableSum"></div>
+                <div class="section-title" data-i18n="summaryTitle">Summary by MtlGroup</div>
+                <div class="table-wrapper" id="tableSum" style="max-height:300px;"></div>
+
+                <!-- Detail Table -->
+                <div style="margin-top:var(--space-sm);">
+                    <div class="section-title" style="display:flex; align-items:center; gap:var(--space-sm);">
+                        <span data-i18n="detailTitle">All Changes (Detail)</span>
+                        <div id="detailFilterBar" class="filter-tags"></div>
+                    </div>
+                    <div id="detailContent">
+                        <div class="detail-empty-hint" data-i18n="detailHint">Click a value in the summary table to view details</div>
+                    </div>
                 </div>
             </div>
 
@@ -617,6 +791,10 @@ let priorData = null;
 let comparisonResult = null;
 let summaryResult = null;
 let currentLang = 'en';
+let detailFilter = { product: null, mtlGroup: null };
+let selectedProject = 'all';
+let thresholdPct = 3;
+let thresholdAmt = 0.01;
 
 // ========================================
 // i18n
@@ -629,12 +807,10 @@ const i18n = {
         priorBom: 'Prior BOM',
         uploadHint: 'Click or drag .xlsx file here',
         compare: 'Compare',
-        detailTab: 'Detail (All Changes)',
-        summaryTab: 'Summary (By MtlGroup)',
-        downloadDetail: 'Download Detail (.xlsx)',
-        downloadSummary: 'Download Summary (.xlsx)',
-        detailTitle: 'BOM Comparison - All Changes',
-        summaryTitle: 'BOM Comparison - Summary by MtlGroup',
+        downloadAll: 'Download (.xlsx)',
+        downloadTemplate: 'Template (.xlsx)',
+        detailTitle: 'All Changes (Detail)',
+        summaryTitle: 'Summary by MtlGroup',
         processing: 'Processing comparison...',
         done: 'Comparison complete!',
         errorSheet: 'Cannot find "BOM Data" sheet in the file.',
@@ -643,6 +819,10 @@ const i18n = {
         newItems: 'New Items',
         removedItems: 'Removed Items',
         products: 'Products',
+        detailHint: 'Click a value in the summary table to view details',
+        secQtyDiff: 'Quantity Difference',
+        secPriceDiff: 'Price Difference',
+        secBothDiff: 'Price & Quantity Difference',
     },
     zh: {
         title: 'BOM 比對工具',
@@ -651,12 +831,10 @@ const i18n = {
         priorBom: '前期 BOM (Prior)',
         uploadHint: '點擊或拖曳 .xlsx 檔案至此',
         compare: '開始比對',
-        detailTab: '明細 (所有變動)',
-        summaryTab: '彙總 (依 MtlGroup)',
-        downloadDetail: '下載明細 (.xlsx)',
-        downloadSummary: '下載彙總 (.xlsx)',
-        detailTitle: 'BOM 比對 - 所有變動明細',
-        summaryTitle: 'BOM 比對 - MtlGroup 彙總',
+        downloadAll: '下載 (.xlsx)',
+        downloadTemplate: '範本 (.xlsx)',
+        detailTitle: '所有變動明細',
+        summaryTitle: 'MtlGroup 彙總',
         processing: '比對處理中...',
         done: '比對完成！',
         errorSheet: '檔案中找不到 "BOM Data" 工作表。',
@@ -665,6 +843,10 @@ const i18n = {
         newItems: '新增項目',
         removedItems: '移除項目',
         products: '產品數',
+        detailHint: '點擊彙總表的數值以查看明細',
+        secQtyDiff: '數量差異',
+        secPriceDiff: '價格差異',
+        secBothDiff: '價格與數量差異',
     }
 };
 
@@ -681,8 +863,69 @@ function setLang(lang) {
     });
     // Re-render tables if results exist
     if (comparisonResult) {
+        summaryResult = buildSummary(getFilteredComparison());
         renderStats();
+        renderSummaryTable();
     }
+}
+
+// ========================================
+// Project Filter
+// ========================================
+function getFilteredComparison() {
+    let rows = comparisonResult;
+    if (selectedProject !== 'all') {
+        rows = rows.filter(r => r.Project === selectedProject);
+    }
+    // Threshold filter on detail rows: hide where BOTH |DiffPrice%| <= pct AND |AmtDiff| <= amt
+    if (thresholdPct > 0 || thresholdAmt > 0) {
+        rows = rows.filter(r => {
+            const absAmt = Math.abs(r.AmtDiff);
+            // If either price is null, skip price% threshold (always keep the row based on amt only)
+            if (r['Prior_Unit Cost'] === null || r['Curr_Unit Cost'] === null) {
+                return !(absAmt <= thresholdAmt);
+            }
+            const priorCost = r['Prior_Unit Cost'] || 0;
+            const absPct = priorCost === 0 ? Infinity : Math.abs((r['Curr_Unit Cost'] - priorCost) / priorCost) * 100;
+            return !(absPct <= thresholdPct && absAmt <= thresholdAmt);
+        });
+    }
+    return rows;
+}
+
+function applyFilters() {
+    const filtered = getFilteredComparison();
+    summaryResult = buildSummary(filtered);
+    renderStats();
+    renderSummaryTable();
+    detailFilter = { product: null, mtlGroup: null };
+    resetDetailToEmpty();
+}
+
+function onProjectChange(val) {
+    selectedProject = val;
+    applyFilters();
+}
+
+function onThresholdChange() {
+    thresholdPct = parseFloat(document.getElementById('thresholdPct').value) || 0;
+    thresholdAmt = parseFloat(document.getElementById('thresholdAmt').value) || 0;
+    applyFilters();
+}
+
+function populateProjectDropdown() {
+    const projects = [...new Set(comparisonResult.map(r => r.Project))].sort();
+    const sel = document.getElementById('projectSelect');
+    sel.innerHTML = '';
+    if (projects.length === 1) {
+        sel.innerHTML = `<option value="${projects[0]}">${projects[0]}</option>`;
+        selectedProject = projects[0];
+    } else {
+        sel.innerHTML = '<option value="all">All</option>' +
+            projects.map(p => `<option value="${p}">${p}</option>`).join('');
+        selectedProject = 'all';
+    }
+    document.getElementById('summaryToolbar').style.display = 'flex';
 }
 
 // ========================================
@@ -824,8 +1067,8 @@ function fullOuterJoin(currentBOM, priorBOM) {
         const curr = currentMap[key] || null;
         const prior = priorMap[key] || null;
 
-        const currPrice = curr ? (curr.Curr_Price ?? 0) : 0;
-        const oldPrice = prior ? (prior.Old_Price ?? 0) : 0;
+        const currPrice = curr ? (curr.Curr_Price ?? 0) : null;
+        const oldPrice = prior ? (prior.Old_Price ?? 0) : null;
         const currQty = curr ? (curr.Curr_Qty ?? 0) : 0;
         const oldQty = prior ? (prior.Old_Qty ?? 0) : 0;
 
@@ -849,7 +1092,7 @@ function fullOuterJoin(currentBOM, priorBOM) {
                 'Curr_Unit Cost': currPrice,
                 'Prior_Ttl. Usage': oldQty,
                 'Curr_Ttl. Usage': currQty,
-                AmtDiff: (currPrice * currQty) - (oldPrice * oldQty),
+                AmtDiff: ((currPrice ?? 0) * currQty) - ((oldPrice ?? 0) * oldQty),
                 _isNew: !prior,
                 _isRemoved: !curr,
             });
@@ -882,7 +1125,7 @@ function buildSummary(comparison) {
     }
 
     // Pivot by Product
-    const products = [...new Set(Object.values(groups).map(g => g.Product))].sort();
+    const products = [...new Set(Object.values(groups).map(g => String(g.Product)))].sort();
     const mtlGroups = {};
 
     for (const g of Object.values(groups)) {
@@ -903,6 +1146,30 @@ function buildSummary(comparison) {
 // ========================================
 // Main Comparison
 // ========================================
+// Merge rows where different Products have identical details within the same Project
+function mergeIdenticalProducts(rows) {
+    const groups = {};
+    const order = [];
+    for (const r of rows) {
+        // Key: everything except Product (same Project, Material, prices, qty, AmtDiff pattern)
+        const key = [r.Project, r.MtlGroup, r.Material,
+            r['Prior_Unit Cost'], r['Curr_Unit Cost'],
+            r['Prior_Ttl. Usage'], r['Curr_Ttl. Usage']].join('|');
+        if (!groups[key]) {
+            groups[key] = { ...r, _products: new Set() };
+            order.push(key);
+        }
+        // Collect all Product names (may already be multi-line from previous merges)
+        String(r.Product).split('\n').forEach(p => { if (p) groups[key]._products.add(p); });
+    }
+    return order.map(k => {
+        const g = groups[k];
+        g.Product = [...g._products].sort().join('\n');
+        delete g._products;
+        return g;
+    });
+}
+
 function runComparison() {
     showStatus(t('processing'), 'info');
     document.getElementById('resultSection').classList.remove('visible');
@@ -912,12 +1179,9 @@ function runComparison() {
         try {
             const currentBOM = processBOM(currentData, 'Curr');
             const priorBOM = processBOM(priorData, 'Old');
-            comparisonResult = fullOuterJoin(currentBOM, priorBOM);
-            summaryResult = buildSummary(comparisonResult);
-
-            renderStats();
-            renderDetailTable();
-            renderSummaryTable();
+            comparisonResult = mergeIdenticalProducts(fullOuterJoin(currentBOM, priorBOM));
+            populateProjectDropdown();
+            applyFilters();
 
             document.getElementById('resultSection').classList.add('visible');
             showStatus(t('done') + ' — ' + comparisonResult.length + ' changes found', 'success');
@@ -932,34 +1196,35 @@ function runComparison() {
 // Rendering
 // ========================================
 function renderStats() {
-    const totalAmtDiff = comparisonResult.reduce((s, r) => s + r.AmtDiff, 0);
-    const newItems = comparisonResult.filter(r => r._isNew).length;
-    const removedItems = comparisonResult.filter(r => r._isRemoved).length;
-    const products = [...new Set(comparisonResult.map(r => r.Product))].length;
+    const filtered = getFilteredComparison();
+    const totalAmtDiff = filtered.reduce((s, r) => s + r.AmtDiff, 0);
+    const newItems = filtered.filter(r => r._isNew).length;
+    const removedItems = filtered.filter(r => r._isRemoved).length;
+    const products = [...new Set(filtered.map(r => r.Product))].length;
 
     const fmtAmt = totalAmtDiff.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const amtClass = totalAmtDiff >= 0 ? 'num-positive' : 'num-negative';
 
     document.getElementById('statsRow').innerHTML = `
         <div class="stat-card">
-            <div class="stat-value">${comparisonResult.length}</div>
             <div class="stat-label">${t('totalChanges')}</div>
+            <div class="stat-value">${filtered.length}</div>
         </div>
         <div class="stat-card">
-            <div class="stat-value ${amtClass}">${fmtAmt}</div>
             <div class="stat-label">${t('totalAmtDiff')}</div>
+            <div class="stat-value ${amtClass}">${fmtAmt}</div>
         </div>
         <div class="stat-card">
-            <div class="stat-value">${newItems}</div>
             <div class="stat-label">${t('newItems')}</div>
+            <div class="stat-value">${newItems}</div>
         </div>
         <div class="stat-card">
-            <div class="stat-value">${removedItems}</div>
             <div class="stat-label">${t('removedItems')}</div>
+            <div class="stat-value">${removedItems}</div>
         </div>
         <div class="stat-card">
-            <div class="stat-value">${products}</div>
             <div class="stat-label">${t('products')}</div>
+            <div class="stat-value">${products}</div>
         </div>
     `;
 }
@@ -975,77 +1240,450 @@ function numClass(v) {
     return 'num-cell';
 }
 
-function renderDetailTable() {
-    const cols = ['Project', 'Product', 'MtlGroup', 'Material', 'Desc/Spec',
-                  'Prior_Unit Cost', 'Curr_Unit Cost', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff'];
-    const numCols = new Set(['Prior_Unit Cost', 'Curr_Unit Cost', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff']);
+// ========================================
+// Filter State & Tags
+// ========================================
+function setFilter(key, value) {
+    detailFilter[key] = value;
+    renderDetailFromFilter();
+}
 
-    let html = '<table class="data-table"><thead><tr>';
-    for (const c of cols) html += `<th>${c}</th>`;
-    html += '</tr></thead><tbody>';
+function removeFilter(key) {
+    detailFilter[key] = null;
+    if (!detailFilter.product && !detailFilter.mtlGroup) {
+        resetDetailToEmpty();
+    } else {
+        renderDetailFromFilter();
+    }
+}
 
-    for (const row of comparisonResult) {
-        html += '<tr>';
-        for (const c of cols) {
-            if (numCols.has(c)) {
-                const v = row[c] ?? 0;
-                html += `<td class="${numClass(c === 'AmtDiff' ? v : 0)}">${fmtNum(v)}</td>`;
-            } else {
-                html += `<td>${row[c] ?? ''}</td>`;
-            }
+function clearAllFilters() {
+    detailFilter = { product: null, mtlGroup: null };
+    resetDetailToEmpty();
+}
+
+function resetDetailToEmpty() {
+    document.getElementById('detailContent').innerHTML =
+        `<div class="detail-empty-hint" data-i18n="detailHint">${t('detailHint')}</div>`;
+    renderFilterTags();
+}
+
+function renderFilterTags() {
+    const bar = document.getElementById('detailFilterBar');
+    const hasFilter = detailFilter.product || detailFilter.mtlGroup;
+    if (!hasFilter) { bar.innerHTML = ''; return; }
+
+    let html = `<button class="btn btn-option" style="font-size:11px; padding:2px 8px;" onclick="clearAllFilters()">✕</button>`;
+    if (detailFilter.product) {
+        html += `<span class="filter-tag">Product: ${detailFilter.product}<button class="tag-close" onclick="removeFilter('product')">✕</button></span>`;
+    }
+    if (detailFilter.mtlGroup) {
+        html += `<span class="filter-tag">MtlGroup: ${detailFilter.mtlGroup}<button class="tag-close" onclick="removeFilter('mtlGroup')">✕</button></span>`;
+    }
+    bar.innerHTML = html;
+}
+
+function renderDetailFromFilter() {
+    const fp = detailFilter.product;
+    const fm = detailFilter.mtlGroup;
+    const hasFilter = fp || fm;
+
+    const isMtlGroupOnly = fm && !fp;
+    const showProject = selectedProject === 'all';
+    const allCols = isMtlGroupOnly
+        ? [...(showProject ? ['Project'] : []), 'Products', 'Material', 'Desc/Spec',
+           'Prior_Unit Cost', 'Curr_Unit Cost', 'DiffPrice%', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff']
+        : [...(showProject ? ['Project'] : []), 'Product', 'MtlGroup', 'Material', 'Desc/Spec',
+           'Prior_Unit Cost', 'Curr_Unit Cost', 'DiffPrice%', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff'];
+    // Hide columns that are active filters
+    const hideCols = new Set();
+    if (fp) hideCols.add('Product');
+    if (fm) hideCols.add('MtlGroup');
+    const cols = allCols.filter(c => !hideCols.has(c));
+    const numCols = new Set(['Prior_Unit Cost', 'Curr_Unit Cost', 'DiffPrice%', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff']);
+    const mergeCols = cols.filter(c => ['Project', 'Product', 'MtlGroup'].includes(c));
+
+    // Filter rows (threshold already applied in getFilteredComparison)
+    let rows = getFilteredComparison().filter(r => {
+        if (fp && r.Product !== fp) return false;
+        if (fm && r.MtlGroup !== fm) return false;
+        return true;
+    });
+
+    // Compute DiffPrice% for each row (skip if either price is null)
+    for (const r of rows) {
+        if (r['Prior_Unit Cost'] === null || r['Curr_Unit Cost'] === null) {
+            r['DiffPrice%'] = null;
+        } else {
+            const prior = r['Prior_Unit Cost'] || 0;
+            r['DiffPrice%'] = prior === 0 ? (r['Curr_Unit Cost'] ? Infinity : 0)
+                : ((r['Curr_Unit Cost'] - prior) / Math.abs(prior)) * 100;
         }
-        html += '</tr>';
     }
 
-    html += '</tbody></table>';
-    document.getElementById('tableAll').innerHTML = html;
+    // Dedup when filtering by MtlGroup only (no product): collapse rows with same Material + same Usage
+    // Keep Project as-is, merge Product (textjoin with newline)
+    if (fm && !fp) {
+        const groups = {};
+        const order = [];
+        for (const r of rows) {
+            const key = r.Material + '|' + r['Prior_Unit Cost'] + '|' + r['Curr_Unit Cost']
+                      + '|' + r['Prior_Ttl. Usage'] + '|' + r['Curr_Ttl. Usage'];
+            if (!groups[key]) {
+                groups[key] = { ...r, _products: new Set() };
+                order.push(key);
+            }
+            if (r.Product) groups[key]._products.add(r.Product);
+        }
+        rows = order.map(k => {
+            const g = groups[k];
+            g._affectedProducts = [...g._products].join('\n');
+            return g;
+        });
+    }
+
+    // Pre-compute rowspans for merge columns
+    const spans = {};
+    for (const mc of mergeCols) {
+        spans[mc] = new Array(rows.length).fill(1);
+        const skip = new Set();
+        for (let i = 0; i < rows.length; i++) {
+            if (skip.has(i)) { spans[mc][i] = 0; continue; }
+            let count = 1;
+            while (i + count < rows.length && rows[i + count][mc] === rows[i][mc]) {
+                skip.add(i + count);
+                count++;
+            }
+            spans[mc][i] = count;
+        }
+    }
+
+    // Classify rows into 3 categories
+    const qtyRows = [];   // price same, qty different
+    const priceRows = []; // qty same, price different
+    const bothRows = [];  // both different
+    for (const r of rows) {
+        const priorPrice = r['Prior_Unit Cost'];
+        const currPrice = r['Curr_Unit Cost'];
+        // If either price is null, treat prices as "same" (item only exists on one side)
+        const priceSame = (priorPrice === null || currPrice === null)
+            ? true
+            : (priorPrice || 0) === (currPrice || 0);
+        const qtySame = (r['Prior_Ttl. Usage'] || 0) === (r['Curr_Ttl. Usage'] || 0);
+        if (priceSame && !qtySame) qtyRows.push(r);
+        else if (!priceSame && qtySame) priceRows.push(r);
+        else bothRows.push(r);
+    }
+
+    // Helper: compute extra diff columns per category
+    for (const r of qtyRows) {
+        r._QtyDiff = (r['Curr_Ttl. Usage'] || 0) - (r['Prior_Ttl. Usage'] || 0);
+    }
+    for (const r of priceRows) {
+        r._PriceDiff = (r['Curr_Unit Cost'] ?? 0) - (r['Prior_Unit Cost'] ?? 0);
+    }
+    for (const r of bothRows) {
+        r._QtyDiff = (r['Curr_Ttl. Usage'] || 0) - (r['Prior_Ttl. Usage'] || 0);
+        r._PriceDiff = (r['Curr_Unit Cost'] ?? 0) - (r['Prior_Unit Cost'] ?? 0);
+    }
+
+    // Build sub-table HTML
+    let _pivotId = 0;
+    function buildSubTable(secRows, secCols, secNumCols, secMergeCols, extraCols) {
+        // Pre-compute rowspans for merge columns
+        const sp = {};
+        for (const mc of secMergeCols) {
+            sp[mc] = new Array(secRows.length).fill(1);
+            const sk = new Set();
+            for (let i = 0; i < secRows.length; i++) {
+                if (sk.has(i)) { sp[mc][i] = 0; continue; }
+                let count = 1;
+                while (i + count < secRows.length && secRows[i + count][mc] === secRows[i][mc]) {
+                    sk.add(i + count);
+                    count++;
+                }
+                sp[mc][i] = count;
+            }
+        }
+
+        // Determine which merge column to use for pivot grouping (use the last one with rowspan > 1)
+        // Priority: use the deepest available merge column
+        const pivotCol = secMergeCols.length > 0 ? secMergeCols[secMergeCols.length - 1] : null;
+
+        let h = '<div class="table-wrapper"><table class="data-table"><thead><tr>';
+        for (const c of secCols) h += `<th>${c}</th>`;
+        h += '</tr></thead><tbody>';
+
+        for (let i = 0; i < secRows.length; i++) {
+            const row = secRows[i];
+            // Assign pivot group data attribute for collapsible rows
+            const isGroupStart = pivotCol && sp[pivotCol][i] > 1;
+            const isGroupChild = pivotCol && sp[pivotCol][i] === 0;
+            const gid = isGroupStart ? `pvt${++_pivotId}` : null;
+            // Track current group id for child rows
+            if (isGroupStart) buildSubTable._currentGid = gid;
+            const rowGid = isGroupChild ? buildSubTable._currentGid : gid;
+            h += `<tr${isGroupChild ? ` data-pivot-group="${rowGid}" class="pivot-child"` : ''}>`;
+            for (const c of secCols) {
+                if (secMergeCols.includes(c)) {
+                    if (sp[c][i] === 0) continue;
+                    const spanCount = sp[c][i];
+                    const rs = spanCount > 1 ? ` rowspan="${spanCount}"` : '';
+                    const val = String(row[c] ?? '').replace(/\n/g, '<br>');
+                    if (c === pivotCol && spanCount > 1) {
+                        h += `<td${rs} class="pivot-toggle" style="white-space:pre-line;vertical-align:top;cursor:pointer;" data-pivot-id="${gid}" data-pivot-span="${spanCount}" onclick="togglePivot(this)"><span class="pivot-arrow">&#9660;</span> ${val}</td>`;
+                    } else {
+                        h += `<td${rs} style="white-space:pre-line;vertical-align:top;">${val}</td>`;
+                    }
+                } else if (c === 'Products') {
+                    const val = String(row._affectedProducts ?? '').replace(/\n/g, '<br>');
+                    h += `<td style="white-space:pre-line;font-size:11px;color:var(--text-secondary);">${val}</td>`;
+                } else if (c === 'DiffPrice%') {
+                    const v = row[c];
+                    if (v === null || v === undefined) {
+                        h += `<td style="text-align:right;font-style:italic;color:var(--text-secondary);">null</td>`;
+                    } else if (!isFinite(v)) {
+                        h += `<td class="num-positive" style="text-align:right;">add</td>`;
+                    } else if (v === -100) {
+                        h += `<td class="num-negative" style="text-align:right;">remove</td>`;
+                    } else {
+                        h += `<td class="${numClass(v)}" title="${fmtNum(v, 5)}%">${fmtNum(v)}%</td>`;
+                    }
+                } else if (extraCols[c]) {
+                    const v = row[extraCols[c]] ?? 0;
+                    h += `<td class="${numClass(v)}" title="${fmtNum(v, 5)}">${fmtNum(v)}</td>`;
+                } else if (secNumCols.has(c)) {
+                    const v = row[c];
+                    if (v === null && (c === 'Prior_Unit Cost' || c === 'Curr_Unit Cost')) {
+                        h += `<td style="text-align:right;font-style:italic;color:var(--text-secondary);">null</td>`;
+                    } else {
+                        const nv = v ?? 0;
+                        h += `<td class="${numClass(c === 'AmtDiff' ? nv : 0)}" title="${fmtNum(nv, 5)}">${fmtNum(nv)}</td>`;
+                    }
+                } else {
+                    h += `<td>${row[c] ?? ''}</td>`;
+                }
+            }
+            h += '</tr>';
+        }
+
+        // Total row
+        const totalKeys = ['AmtDiff'];
+        const tots = {};
+        for (const c of totalKeys) tots[c] = secRows.reduce((s, r) => s + (r[c] ?? 0), 0);
+        const nonNum = secCols.filter(c => !secNumCols.has(c) && !extraCols[c] && c !== 'Products').length + (secCols.includes('Products') ? 1 : 0);
+        h += '</tbody><tfoot><tr>';
+        h += `<td colspan="${nonNum}" style="text-align:left;">Total</td>`;
+        for (const c of secCols) {
+            if (!secNumCols.has(c) && !extraCols[c]) continue;
+            if (c === 'AmtDiff') {
+                const v = tots[c];
+                h += `<td class="${numClass(v)}" title="${fmtNum(v, 5)}">${fmtNum(v)}</td>`;
+            } else {
+                h += '<td></td>';
+            }
+        }
+        h += '</tr></tfoot></table></div>';
+        return h;
+    }
+
+    // Define columns per section
+    // qtyRows: hide price cols, show QtyDiff
+    const qtyOnlyCols = cols.filter(c => c !== 'Prior_Unit Cost' && c !== 'Curr_Unit Cost' && c !== 'DiffPrice%');
+    // Insert QtyDiff before AmtDiff
+    const qtyIdx = qtyOnlyCols.indexOf('AmtDiff');
+    if (qtyIdx >= 0) qtyOnlyCols.splice(qtyIdx, 0, 'QtyDiff');
+    const qtyNumCols = new Set([...numCols, 'QtyDiff']);
+
+    // priceRows: hide qty cols, show PriceDiff
+    const priceOnlyCols = cols.filter(c => c !== 'Prior_Ttl. Usage' && c !== 'Curr_Ttl. Usage');
+    const priceIdx = priceOnlyCols.indexOf('AmtDiff');
+    if (priceIdx >= 0) priceOnlyCols.splice(priceIdx, 0, 'PriceDiff');
+    const priceNumCols = new Set([...numCols, 'PriceDiff']);
+
+    // bothRows: show all + QtyDiff + PriceDiff
+    const bothCols = [...cols];
+    const bothIdx = bothCols.indexOf('AmtDiff');
+    if (bothIdx >= 0) { bothCols.splice(bothIdx, 0, 'QtyDiff'); bothCols.splice(bothIdx + 1, 0, 'PriceDiff'); }
+    const bothNumCols = new Set([...numCols, 'QtyDiff', 'PriceDiff']);
+
+    let html = '';
+
+    const sections = [
+        { key: 'secQtyDiff',   css: 'sec-qty',   rows: qtyRows,   secCols: qtyOnlyCols,   secNumCols: qtyNumCols,   extra: { 'QtyDiff': '_QtyDiff' } },
+        { key: 'secPriceDiff', css: 'sec-price',  rows: priceRows, secCols: priceOnlyCols, secNumCols: priceNumCols, extra: { 'PriceDiff': '_PriceDiff' } },
+        { key: 'secBothDiff',  css: 'sec-both',   rows: bothRows,  secCols: bothCols,      secNumCols: bothNumCols,  extra: { 'QtyDiff': '_QtyDiff', 'PriceDiff': '_PriceDiff' } },
+    ];
+
+    for (const sec of sections) {
+        if (sec.rows.length === 0) continue;
+        html += `<div class="detail-section ${sec.css}">`;
+        html += `<div class="detail-section-title">${t(sec.key)} <span class="badge">${sec.rows.length}</span></div>`;
+        html += buildSubTable(sec.rows, sec.secCols, sec.secNumCols, mergeCols, sec.extra);
+        html += '</div>';
+    }
+
+    if (html === '') {
+        html = `<div style="text-align:center;padding:20px;color:var(--text-secondary);">No detail rows to display.</div>`;
+    }
+
+    document.getElementById('detailContent').innerHTML = html;
+    renderFilterTags();
+    document.getElementById('detailContent').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function drillDown(product, mtlGroup) {
+    detailFilter = { product: product, mtlGroup: mtlGroup };
+    renderDetailFromFilter();
+}
+
+function drillDownProduct(product) {
+    detailFilter = { product: product, mtlGroup: null };
+    renderDetailFromFilter();
+}
+
+function drillDownMtlGroup(mtlGroup) {
+    detailFilter = { product: null, mtlGroup: mtlGroup };
+    renderDetailFromFilter();
+}
+
+function togglePivot(td) {
+    const gid = td.getAttribute('data-pivot-id');
+    const origSpan = parseInt(td.getAttribute('data-pivot-span'));
+    const isCollapsed = td.classList.contains('collapsed');
+    const childRows = td.closest('table').querySelectorAll(`tr[data-pivot-group="${gid}"]`);
+
+    if (isCollapsed) {
+        // Expand
+        td.classList.remove('collapsed');
+        td.setAttribute('rowspan', origSpan);
+        childRows.forEach(r => r.style.display = '');
+    } else {
+        // Collapse
+        td.classList.add('collapsed');
+        td.setAttribute('rowspan', '1');
+        childRows.forEach(r => r.style.display = 'none');
+    }
 }
 
 function renderSummaryTable() {
     const { data, products } = summaryResult;
-    const baseCols = ['Project', 'MtlGroup'];
+    const showProject = selectedProject === 'all';
+    const baseCols = showProject ? ['Project', 'MtlGroup'] : ['MtlGroup'];
+
+    // Compute rowspans for Project column
+    const projectSpans = new Array(data.length).fill(1);
+    if (showProject) {
+        const skip = new Set();
+        for (let i = 0; i < data.length; i++) {
+            if (skip.has(i)) { projectSpans[i] = 0; continue; }
+            let count = 1;
+            while (i + count < data.length && data[i + count].Project === data[i].Project) {
+                skip.add(i + count);
+                count++;
+            }
+            projectSpans[i] = count;
+        }
+    }
+
+    // Compute sticky left offsets
+    const colWidths = showProject ? [100, 120] : [120]; // estimated px widths
+    const stickyOffsets = [];
+    let offset = 0;
+    for (let ci = 0; ci < baseCols.length; ci++) {
+        stickyOffsets.push(offset);
+        offset += colWidths[ci];
+    }
 
     let html = '<table class="data-table"><thead><tr>';
-    for (const c of baseCols) html += `<th>${c}</th>`;
-    for (const p of products) html += `<th>${p}</th>`;
+    for (let ci = 0; ci < baseCols.length; ci++) {
+        html += `<th class="sticky-col" style="left:${stickyOffsets[ci]}px;">${baseCols[ci]}</th>`;
+    }
+    for (const p of products) html += `<th style="white-space:pre-line;">${p}</th>`;
     html += '</tr></thead><tbody>';
 
-    for (const row of data) {
-        html += '<tr>';
-        for (const c of baseCols) html += `<td>${row[c] ?? ''}</td>`;
+    let _sumPivotId = 0;
+    let _sumCurrentGid = null;
+    for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        const isChild = showProject && projectSpans[i] === 0;
+        const isGroupStart = showProject && projectSpans[i] > 1;
+        const gid = isGroupStart ? `spvt${++_sumPivotId}` : null;
+        if (isGroupStart) _sumCurrentGid = gid;
+        html += `<tr${isChild ? ` data-pivot-group="${_sumCurrentGid}" class="pivot-child"` : ''}>`;
+        if (showProject && projectSpans[i] > 0) {
+            const spanCount = projectSpans[i];
+            const rs = spanCount > 1 ? ` rowspan="${spanCount}"` : '';
+            if (spanCount > 1) {
+                html += `<td class="sticky-col pivot-toggle" style="left:${stickyOffsets[0]}px;vertical-align:top;cursor:pointer;" data-pivot-id="${gid}" data-pivot-span="${spanCount}" onclick="togglePivot(this)"${rs}><span class="pivot-arrow">&#9660;</span> ${row.Project ?? ''}</td>`;
+            } else {
+                html += `<td class="sticky-col" style="left:${stickyOffsets[0]}px;vertical-align:top;"${rs}>${row.Project ?? ''}</td>`;
+            }
+        }
+        const escaped_mg = String(row.MtlGroup ?? '').replace(/'/g, "\\'");
+        const mgLeft = stickyOffsets[showProject ? 1 : 0];
+        html += `<td class="sticky-col summary-clickable" style="left:${mgLeft}px;" onclick="drillDownMtlGroup('${escaped_mg}')">${row.MtlGroup ?? ''}</td>`;
         for (const p of products) {
             const v = row[p] ?? 0;
-            html += `<td class="${numClass(v)}">${fmtNum(v)}</td>`;
+            const escaped_p = String(p).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
+            html += `<td class="${numClass(v)} summary-clickable" onclick="drillDown('${escaped_p}','${escaped_mg}')" title="${fmtNum(v, 5)}">${fmtNum(v)}</td>`;
         }
         html += '</tr>';
     }
 
-    html += '</tbody></table>';
+    // Total row
+    html += '</tbody><tfoot><tr>';
+    html += `<td class="sticky-col" colspan="${baseCols.length}" style="left:0;text-align:left;">Total</td>`;
+    for (const p of products) {
+        const total = data.reduce((s, r) => s + (r[p] ?? 0), 0);
+        const escaped_p = String(p).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
+        html += `<td class="${numClass(total)} summary-clickable" onclick="drillDownProduct('${escaped_p}')" title="${fmtNum(total, 5)}">${fmtNum(total)}</td>`;
+    }
+    html += '</tr></tfoot></table>';
     document.getElementById('tableSum').innerHTML = html;
 }
 
 // ========================================
-// Tabs
+// Template Download
 // ========================================
-function switchTab(tab) {
-    document.querySelectorAll('.tab-btn').forEach((b, i) => {
-        b.classList.toggle('active', (tab === 'all' && i === 0) || (tab === 'sum' && i === 1));
-    });
-    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-    document.getElementById('tab-' + tab).classList.add('active');
+function downloadTemplate() {
+    const templateCols = ['Project', 'Product', 'MtlGroup', 'Material', 'Desc/Spec', 'Unit Cost', 'Ttl. Usage'];
+    const ws = XLSX.utils.aoa_to_sheet([templateCols]);
+    // Set column widths
+    ws['!cols'] = templateCols.map(c => ({ wch: Math.max(c.length + 2, 12) }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'BOM Data');
+    XLSX.writeFile(wb, 'BOM_Template.xlsx');
 }
 
 // ========================================
 // Download Excel
 // ========================================
-function downloadExcel(type) {
+function downloadExcel() {
     if (!comparisonResult) return;
 
-    let sheetData, fileName;
+    // Always use original unfiltered data
+    const fullSummary = buildSummary(comparisonResult);
+    const { data, products } = fullSummary;
 
-    if (type === 'all') {
-        // Detail view
-        sheetData = comparisonResult.map(r => ({
+    // Sheet 1: Summary
+    const sumData = data.map(r => {
+        const obj = { 'Project': r.Project, 'MtlGroup': r.MtlGroup };
+        for (const p of products) obj[p] = r[p] ?? 0;
+        return obj;
+    });
+    const wsSummary = XLSX.utils.json_to_sheet(sumData);
+
+    // Sheet 2: Detail
+    const detailData = comparisonResult.map(r => {
+        let diffPricePct = null;
+        if (r['Prior_Unit Cost'] !== null && r['Curr_Unit Cost'] !== null) {
+            const prior = r['Prior_Unit Cost'] || 0;
+            diffPricePct = prior === 0 ? (r['Curr_Unit Cost'] ? Infinity : 0)
+                : ((r['Curr_Unit Cost'] - prior) / Math.abs(prior)) * 100;
+            if (!isFinite(diffPricePct)) diffPricePct = null;
+        }
+        return {
             'Project': r.Project,
             'Product': r.Product,
             'MtlGroup': r.MtlGroup,
@@ -1053,26 +1691,18 @@ function downloadExcel(type) {
             'Desc/Spec': r['Desc/Spec'],
             'Prior_Unit Cost': r['Prior_Unit Cost'],
             'Curr_Unit Cost': r['Curr_Unit Cost'],
+            'DiffPrice%': diffPricePct,
             'Prior_Ttl. Usage': r['Prior_Ttl. Usage'],
             'Curr_Ttl. Usage': r['Curr_Ttl. Usage'],
             'AmtDiff': r.AmtDiff
-        }));
-        fileName = 'BOM_Comparison_Detail.xlsx';
-    } else {
-        // Summary view
-        const { data, products } = summaryResult;
-        sheetData = data.map(r => {
-            const obj = { 'Project': r.Project, 'MtlGroup': r.MtlGroup };
-            for (const p of products) obj[p] = r[p] ?? 0;
-            return obj;
-        });
-        fileName = 'BOM_Comparison_Summary.xlsx';
-    }
+        };
+    });
+    const wsDetail = XLSX.utils.json_to_sheet(detailData);
 
-    const ws = XLSX.utils.json_to_sheet(sheetData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'BOM Comparison');
-    XLSX.writeFile(wb, fileName);
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+    XLSX.utils.book_append_sheet(wb, wsDetail, 'Detail');
+    XLSX.writeFile(wb, 'BOM_Comparison.xlsx');
 }
 </script>
 
