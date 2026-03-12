@@ -394,9 +394,13 @@
             background: var(--primary-pale);
         }
 
+        .data-table tbody tr {
+            background: white;
+        }
         .data-table tbody tr:nth-child(even) {
             background: #fafff6;
         }
+        .data-table tbody tr:hover,
         .data-table tbody tr:nth-child(even):hover {
             background: var(--primary-pale);
         }
@@ -412,6 +416,19 @@
             position: sticky;
             bottom: 0;
             z-index: 1;
+        }
+
+        /* Sticky left columns for summary pivot table */
+        .data-table .sticky-col {
+            position: sticky;
+            background: inherit;
+            z-index: 1;
+        }
+        .data-table thead .sticky-col {
+            z-index: 3;
+        }
+        .data-table tfoot .sticky-col {
+            z-index: 2;
         }
 
         /* ========================================
@@ -1350,8 +1367,19 @@ function renderSummaryTable() {
         }
     }
 
+    // Compute sticky left offsets
+    const colWidths = showProject ? [100, 120] : [120]; // estimated px widths
+    const stickyOffsets = [];
+    let offset = 0;
+    for (let ci = 0; ci < baseCols.length; ci++) {
+        stickyOffsets.push(offset);
+        offset += colWidths[ci];
+    }
+
     let html = '<table class="data-table"><thead><tr>';
-    for (const c of baseCols) html += `<th>${c}</th>`;
+    for (let ci = 0; ci < baseCols.length; ci++) {
+        html += `<th class="sticky-col" style="left:${stickyOffsets[ci]}px;">${baseCols[ci]}</th>`;
+    }
     for (const p of products) html += `<th>${p}</th>`;
     html += '</tr></thead><tbody>';
 
@@ -1359,11 +1387,12 @@ function renderSummaryTable() {
         const row = data[i];
         html += '<tr>';
         if (showProject && projectSpans[i] > 0) {
-            const rs = projectSpans[i] > 1 ? ` rowspan="${projectSpans[i]}" style="vertical-align:top;"` : '';
-            html += `<td${rs}>${row.Project ?? ''}</td>`;
+            const rs = projectSpans[i] > 1 ? ` rowspan="${projectSpans[i]}"` : '';
+            html += `<td class="sticky-col" style="left:${stickyOffsets[0]}px;vertical-align:top;"${rs}>${row.Project ?? ''}</td>`;
         }
         const escaped_mg = String(row.MtlGroup ?? '').replace(/'/g, "\\'");
-        html += `<td class="summary-clickable" onclick="drillDownMtlGroup('${escaped_mg}')">${row.MtlGroup ?? ''}</td>`;
+        const mgLeft = stickyOffsets[showProject ? 1 : 0];
+        html += `<td class="sticky-col summary-clickable" style="left:${mgLeft}px;" onclick="drillDownMtlGroup('${escaped_mg}')">${row.MtlGroup ?? ''}</td>`;
         for (const p of products) {
             const v = row[p] ?? 0;
             const escaped_p = String(p).replace(/'/g, "\\'");
@@ -1374,7 +1403,7 @@ function renderSummaryTable() {
 
     // Total row
     html += '</tbody><tfoot><tr>';
-    html += `<td colspan="${baseCols.length}" style="text-align:right;">Total</td>`;
+    html += `<td class="sticky-col" colspan="${baseCols.length}" style="left:0;text-align:left;">Total</td>`;
     for (const p of products) {
         const total = data.reduce((s, r) => s + (r[p] ?? 0), 0);
         const escaped_p = String(p).replace(/'/g, "\\'");
