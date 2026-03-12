@@ -813,35 +813,21 @@ function getFilteredComparison() {
     if (selectedProject !== 'all') {
         rows = rows.filter(r => r.Project === selectedProject);
     }
+    // Threshold filter on detail rows: hide where BOTH |Change%| <= pct AND |AmtDiff| <= amt
+    if (thresholdPct > 0 || thresholdAmt > 0) {
+        rows = rows.filter(r => {
+            const absAmt = Math.abs(r.AmtDiff);
+            const priorCost = r['Prior_Unit Cost'] || 0;
+            const absPct = priorCost === 0 ? Infinity : Math.abs((r['Curr_Unit Cost'] - priorCost) / priorCost) * 100;
+            return !(absPct <= thresholdPct && absAmt <= thresholdAmt);
+        });
+    }
     return rows;
-}
-
-// Check if a single detail row is below threshold (should be hidden)
-function isBelowThreshold(row) {
-    if (thresholdPct <= 0 && thresholdAmt <= 0) return false;
-    const absAmt = Math.abs(row.AmtDiff);
-    const priorCost = row['Prior_Unit Cost'] || 0;
-    const absPct = priorCost === 0 ? Infinity : Math.abs((row['Curr_Unit Cost'] - priorCost) / priorCost) * 100;
-    return absPct <= thresholdPct && absAmt <= thresholdAmt;
 }
 
 function applyFilters() {
     const filtered = getFilteredComparison();
-    const fullSummary = buildSummary(filtered);
-    // Apply threshold on summary rows: hide row if ALL product values meet both conditions
-    const { data, products, priorAmts } = fullSummary;
-    const filteredData = data.filter(row => {
-        if (thresholdPct <= 0 && thresholdAmt <= 0) return true;
-        // Keep row if ANY product value exceeds either threshold
-        for (const p of products) {
-            const amt = Math.abs(row[p] ?? 0);
-            const prior = (priorAmts[row.Project + '|' + row.MtlGroup + '|' + p]) || 0;
-            const pct = prior === 0 ? Infinity : (amt / Math.abs(prior)) * 100;
-            if (pct > thresholdPct || amt > thresholdAmt) return true;
-        }
-        return false;
-    });
-    summaryResult = { data: filteredData, products, priorAmts };
+    summaryResult = buildSummary(filtered);
     renderStats();
     renderSummaryTable();
     detailFilter = { product: null, mtlGroup: null };
@@ -1064,18 +1050,15 @@ function buildSummary(comparison) {
                 Project: row.Project,
                 Product: row.Product,
                 MtlGroup: row.MtlGroup,
-                AmtDiff: 0,
-                PriorAmt: 0
+                AmtDiff: 0
             };
         }
         groups[key].AmtDiff += row.AmtDiff;
-        groups[key].PriorAmt += (row['Prior_Unit Cost'] || 0) * (row['Prior_Ttl. Usage'] || 0);
     }
 
     // Pivot by Product
     const products = [...new Set(Object.values(groups).map(g => String(g.Product)))].sort();
     const mtlGroups = {};
-    const priorAmts = {};
 
     for (const g of Object.values(groups)) {
         const mk = g.Project + '|' + g.MtlGroup;
@@ -1083,15 +1066,13 @@ function buildSummary(comparison) {
             mtlGroups[mk] = { Project: g.Project, MtlGroup: g.MtlGroup };
         }
         mtlGroups[mk][g.Product] = (mtlGroups[mk][g.Product] || 0) + g.AmtDiff;
-        const priorKey = g.Project + '|' + g.MtlGroup + '|' + g.Product;
-        priorAmts[priorKey] = (priorAmts[priorKey] || 0) + g.PriorAmt;
     }
 
     const result = Object.values(mtlGroups).sort((a, b) =>
         String(a.MtlGroup).localeCompare(String(b.MtlGroup))
     );
 
-    return { data: result, products, priorAmts };
+    return { data: result, products };
 }
 
 // ========================================
@@ -1230,11 +1211,11 @@ function renderDetailFromFilter() {
     const numCols = new Set(['Prior_Unit Cost', 'Curr_Unit Cost', 'Change%', 'Prior_Ttl. Usage', 'Curr_Ttl. Usage', 'AmtDiff']);
     const mergeCols = cols.filter(c => ['Project', 'Product', 'MtlGroup'].includes(c));
 
-    // Filter rows + apply threshold
+    // Filter rows (threshold already applied in getFilteredComparison)
     let rows = getFilteredComparison().filter(r => {
         if (fp && r.Product !== fp) return false;
         if (fm && r.MtlGroup !== fm) return false;
-        return !isBelowThreshold(r);
+        return true;
     });
 
     // Compute Change% for each row
