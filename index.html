@@ -89,7 +89,7 @@
            4. 主容器
         ======================================== */
         .container {
-            max-width: 1200px;
+            max-width: 1600px;
             margin: 0 auto;
             background: var(--bg-container);
             border-radius: var(--radius-lg);
@@ -404,14 +404,14 @@
         .data-table th {
             background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
             color: white;
-            padding: 10px 14px;
+            padding: 8px 10px;
             text-align: left;
             font-weight: 600;
             font-size: 12px;
         }
 
         .data-table td {
-            padding: 8px 14px;
+            padding: 6px 10px;
             border-bottom: 1px solid #f0f0f0;
         }
 
@@ -483,6 +483,22 @@
         @keyframes spin { to { transform: rotate(360deg); } }
 
         /* (Tabs removed - both views shown inline) */
+
+        /* Pivot-style expand/collapse */
+        .pivot-toggle {
+            cursor: pointer;
+            user-select: none;
+        }
+        .pivot-toggle .pivot-arrow {
+            display: inline-block;
+            width: 14px;
+            font-size: 10px;
+            color: var(--text-muted);
+            transition: transform 0.2s;
+        }
+        .pivot-toggle.collapsed .pivot-arrow {
+            transform: rotate(-90deg);
+        }
 
         .summary-clickable {
             cursor: pointer;
@@ -1130,6 +1146,30 @@ function buildSummary(comparison) {
 // ========================================
 // Main Comparison
 // ========================================
+// Merge rows where different Products have identical details within the same Project
+function mergeIdenticalProducts(rows) {
+    const groups = {};
+    const order = [];
+    for (const r of rows) {
+        // Key: everything except Product (same Project, Material, prices, qty, AmtDiff pattern)
+        const key = [r.Project, r.MtlGroup, r.Material,
+            r['Prior_Unit Cost'], r['Curr_Unit Cost'],
+            r['Prior_Ttl. Usage'], r['Curr_Ttl. Usage']].join('|');
+        if (!groups[key]) {
+            groups[key] = { ...r, _products: new Set() };
+            order.push(key);
+        }
+        // Collect all Product names (may already be multi-line from previous merges)
+        String(r.Product).split('\n').forEach(p => { if (p) groups[key]._products.add(p); });
+    }
+    return order.map(k => {
+        const g = groups[k];
+        g.Product = [...g._products].sort().join('\n');
+        delete g._products;
+        return g;
+    });
+}
+
 function runComparison() {
     showStatus(t('processing'), 'info');
     document.getElementById('resultSection').classList.remove('visible');
@@ -1139,7 +1179,7 @@ function runComparison() {
         try {
             const currentBOM = processBOM(currentData, 'Curr');
             const priorBOM = processBOM(priorData, 'Old');
-            comparisonResult = fullOuterJoin(currentBOM, priorBOM);
+            comparisonResult = mergeIdenticalProducts(fullOuterJoin(currentBOM, priorBOM));
             populateProjectDropdown();
             applyFilters();
 
@@ -1348,6 +1388,7 @@ function renderDetailFromFilter() {
     }
 
     // Build sub-table HTML
+    let _pivotId = 0;
     function buildSubTable(secRows, secCols, secNumCols, secMergeCols, extraCols) {
         // Pre-compute rowspans for merge columns
         const sp = {};
@@ -1365,19 +1406,35 @@ function renderDetailFromFilter() {
             }
         }
 
+        // Determine which merge column to use for pivot grouping (use the last one with rowspan > 1)
+        // Priority: use the deepest available merge column
+        const pivotCol = secMergeCols.length > 0 ? secMergeCols[secMergeCols.length - 1] : null;
+
         let h = '<div class="table-wrapper"><table class="data-table"><thead><tr>';
         for (const c of secCols) h += `<th>${c}</th>`;
         h += '</tr></thead><tbody>';
 
         for (let i = 0; i < secRows.length; i++) {
             const row = secRows[i];
-            h += '<tr>';
+            // Assign pivot group data attribute for collapsible rows
+            const isGroupStart = pivotCol && sp[pivotCol][i] > 1;
+            const isGroupChild = pivotCol && sp[pivotCol][i] === 0;
+            const gid = isGroupStart ? `pvt${++_pivotId}` : null;
+            // Track current group id for child rows
+            if (isGroupStart) buildSubTable._currentGid = gid;
+            const rowGid = isGroupChild ? buildSubTable._currentGid : gid;
+            h += `<tr${isGroupChild ? ` data-pivot-group="${rowGid}" class="pivot-child"` : ''}>`;
             for (const c of secCols) {
                 if (secMergeCols.includes(c)) {
                     if (sp[c][i] === 0) continue;
-                    const rs = sp[c][i] > 1 ? ` rowspan="${sp[c][i]}" style="vertical-align:top;"` : '';
+                    const spanCount = sp[c][i];
+                    const rs = spanCount > 1 ? ` rowspan="${spanCount}"` : '';
                     const val = String(row[c] ?? '').replace(/\n/g, '<br>');
-                    h += `<td${rs} style="white-space:pre-line;vertical-align:top;">${val}</td>`;
+                    if (c === pivotCol && spanCount > 1) {
+                        h += `<td${rs} class="pivot-toggle" style="white-space:pre-line;vertical-align:top;cursor:pointer;" data-pivot-id="${gid}" data-pivot-span="${spanCount}" onclick="togglePivot(this)"><span class="pivot-arrow">&#9660;</span> ${val}</td>`;
+                    } else {
+                        h += `<td${rs} style="white-space:pre-line;vertical-align:top;">${val}</td>`;
+                    }
                 } else if (c === 'Products') {
                     const val = String(row._affectedProducts ?? '').replace(/\n/g, '<br>');
                     h += `<td style="white-space:pre-line;font-size:11px;color:var(--text-secondary);">${val}</td>`;
@@ -1385,10 +1442,12 @@ function renderDetailFromFilter() {
                     const v = row[c];
                     if (v === null || v === undefined) {
                         h += `<td style="text-align:right;font-style:italic;color:var(--text-secondary);">null</td>`;
+                    } else if (!isFinite(v)) {
+                        h += `<td class="num-positive" style="text-align:right;">add</td>`;
+                    } else if (v === -100) {
+                        h += `<td class="num-negative" style="text-align:right;">remove</td>`;
                     } else {
-                        const display = isFinite(v) ? fmtNum(v) + '%' : 'NEW';
-                        const tip = isFinite(v) ? fmtNum(v, 5) + '%' : 'NEW';
-                        h += `<td class="${numClass(v)}" title="${tip}">${display}</td>`;
+                        h += `<td class="${numClass(v)}" title="${fmtNum(v, 5)}%">${fmtNum(v)}%</td>`;
                     }
                 } else if (extraCols[c]) {
                     const v = row[extraCols[c]] ?? 0;
@@ -1488,6 +1547,25 @@ function drillDownMtlGroup(mtlGroup) {
     renderDetailFromFilter();
 }
 
+function togglePivot(td) {
+    const gid = td.getAttribute('data-pivot-id');
+    const origSpan = parseInt(td.getAttribute('data-pivot-span'));
+    const isCollapsed = td.classList.contains('collapsed');
+    const childRows = td.closest('table').querySelectorAll(`tr[data-pivot-group="${gid}"]`);
+
+    if (isCollapsed) {
+        // Expand
+        td.classList.remove('collapsed');
+        td.setAttribute('rowspan', origSpan);
+        childRows.forEach(r => r.style.display = '');
+    } else {
+        // Collapse
+        td.classList.add('collapsed');
+        td.setAttribute('rowspan', '1');
+        childRows.forEach(r => r.style.display = 'none');
+    }
+}
+
 function renderSummaryTable() {
     const { data, products } = summaryResult;
     const showProject = selectedProject === 'all';
@@ -1521,22 +1599,33 @@ function renderSummaryTable() {
     for (let ci = 0; ci < baseCols.length; ci++) {
         html += `<th class="sticky-col" style="left:${stickyOffsets[ci]}px;">${baseCols[ci]}</th>`;
     }
-    for (const p of products) html += `<th>${p}</th>`;
+    for (const p of products) html += `<th style="white-space:pre-line;">${p}</th>`;
     html += '</tr></thead><tbody>';
 
+    let _sumPivotId = 0;
+    let _sumCurrentGid = null;
     for (let i = 0; i < data.length; i++) {
         const row = data[i];
-        html += '<tr>';
+        const isChild = showProject && projectSpans[i] === 0;
+        const isGroupStart = showProject && projectSpans[i] > 1;
+        const gid = isGroupStart ? `spvt${++_sumPivotId}` : null;
+        if (isGroupStart) _sumCurrentGid = gid;
+        html += `<tr${isChild ? ` data-pivot-group="${_sumCurrentGid}" class="pivot-child"` : ''}>`;
         if (showProject && projectSpans[i] > 0) {
-            const rs = projectSpans[i] > 1 ? ` rowspan="${projectSpans[i]}"` : '';
-            html += `<td class="sticky-col" style="left:${stickyOffsets[0]}px;vertical-align:top;"${rs}>${row.Project ?? ''}</td>`;
+            const spanCount = projectSpans[i];
+            const rs = spanCount > 1 ? ` rowspan="${spanCount}"` : '';
+            if (spanCount > 1) {
+                html += `<td class="sticky-col pivot-toggle" style="left:${stickyOffsets[0]}px;vertical-align:top;cursor:pointer;" data-pivot-id="${gid}" data-pivot-span="${spanCount}" onclick="togglePivot(this)"${rs}><span class="pivot-arrow">&#9660;</span> ${row.Project ?? ''}</td>`;
+            } else {
+                html += `<td class="sticky-col" style="left:${stickyOffsets[0]}px;vertical-align:top;"${rs}>${row.Project ?? ''}</td>`;
+            }
         }
         const escaped_mg = String(row.MtlGroup ?? '').replace(/'/g, "\\'");
         const mgLeft = stickyOffsets[showProject ? 1 : 0];
         html += `<td class="sticky-col summary-clickable" style="left:${mgLeft}px;" onclick="drillDownMtlGroup('${escaped_mg}')">${row.MtlGroup ?? ''}</td>`;
         for (const p of products) {
             const v = row[p] ?? 0;
-            const escaped_p = String(p).replace(/'/g, "\\'");
+            const escaped_p = String(p).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
             html += `<td class="${numClass(v)} summary-clickable" onclick="drillDown('${escaped_p}','${escaped_mg}')" title="${fmtNum(v, 5)}">${fmtNum(v)}</td>`;
         }
         html += '</tr>';
@@ -1547,7 +1636,7 @@ function renderSummaryTable() {
     html += `<td class="sticky-col" colspan="${baseCols.length}" style="left:0;text-align:left;">Total</td>`;
     for (const p of products) {
         const total = data.reduce((s, r) => s + (r[p] ?? 0), 0);
-        const escaped_p = String(p).replace(/'/g, "\\'");
+        const escaped_p = String(p).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
         html += `<td class="${numClass(total)} summary-clickable" onclick="drillDownProduct('${escaped_p}')" title="${fmtNum(total, 5)}">${fmtNum(total)}</td>`;
     }
     html += '</tr></tfoot></table>';
