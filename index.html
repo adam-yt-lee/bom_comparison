@@ -1058,7 +1058,7 @@ function buildSummary(comparison) {
     }
 
     // Pivot by Product
-    const products = [...new Set(Object.values(groups).map(g => g.Product))].sort();
+    const products = [...new Set(Object.values(groups).map(g => String(g.Product)))].sort();
     const mtlGroups = {};
 
     for (const g of Object.values(groups)) {
@@ -1274,10 +1274,10 @@ function renderDetailFromFilter() {
             if (mergeCols.includes(c)) {
                 if (spans[c][i] === 0) continue;
                 const rs = spans[c][i] > 1 ? ` rowspan="${spans[c][i]}" style="vertical-align:top;"` : '';
-                const val = (row[c] ?? '').replace(/\n/g, '<br>');
+                const val = String(row[c] ?? '').replace(/\n/g, '<br>');
                 html += `<td${rs} style="white-space:pre-line;vertical-align:top;">${val}</td>`;
             } else if (c === 'Products') {
-                const val = (row._affectedProducts ?? '').replace(/\n/g, '<br>');
+                const val = String(row._affectedProducts ?? '').replace(/\n/g, '<br>');
                 html += `<td style="white-space:pre-line;font-size:11px;color:var(--text-secondary);">${val}</td>`;
             } else if (numCols.has(c)) {
                 const v = row[c] ?? 0;
@@ -1353,11 +1353,11 @@ function renderSummaryTable() {
             const rs = projectSpans[i] > 1 ? ` rowspan="${projectSpans[i]}" style="vertical-align:top;"` : '';
             html += `<td${rs}>${row.Project ?? ''}</td>`;
         }
-        const escaped_mg = (row.MtlGroup ?? '').replace(/'/g, "\\'");
+        const escaped_mg = String(row.MtlGroup ?? '').replace(/'/g, "\\'");
         html += `<td class="summary-clickable" onclick="drillDownMtlGroup('${escaped_mg}')">${row.MtlGroup ?? ''}</td>`;
         for (const p of products) {
             const v = row[p] ?? 0;
-            const escaped_p = p.replace(/'/g, "\\'");
+            const escaped_p = String(p).replace(/'/g, "\\'");
             html += `<td class="${numClass(v)} summary-clickable" onclick="drillDown('${escaped_p}','${escaped_mg}')" title="${fmtNum(v, 5)}">${fmtNum(v)}</td>`;
         }
         html += '</tr>';
