@@ -757,13 +757,14 @@
                             <option value="all">All</option>
                         </select>
                     </div>
-                    <div class="toolbar-right">
-                        <label>Threshold:</label>
+                    <div class="toolbar-right" style="font-size:12px;">
+                        <label data-i18n="thresholdShow" style="color:var(--text-secondary);">Show only</label>
+                        <label>|Change%| &gt;</label>
                         <input type="number" id="thresholdPct" value="3" min="0" step="0.1" onchange="onThresholdChange()" title="Change % threshold">
                         <label>%</label>
-                        <div class="toolbar-separator"></div>
-                        <input type="number" id="thresholdAmt" value="0.01" min="0" step="0.01" onchange="onThresholdChange()" title="Change amount threshold">
-                        <label>Amt</label>
+                        <label style="color:var(--text-secondary); font-weight:400;">or</label>
+                        <label>|AmtDiff| &gt;</label>
+                        <input type="number" id="thresholdAmt" value="0.01" min="0" step="0.01" onchange="onThresholdChange()" title="Amount threshold">
                     </div>
                 </div>
 
@@ -798,7 +799,8 @@
 // ========================================
 let currentData = null;
 let priorData = null;
-let comparisonResult = null;
+let rawComparisonResult = null;  // unmerged join result
+let comparisonResult = null;     // after mergeIdenticalProducts
 let summaryResult = null;
 let currentLang = 'en';
 let detailFilter = { product: null, mtlGroup: null };
@@ -833,6 +835,7 @@ const i18n = {
         secQtyDiff: 'Quantity Difference',
         secPriceDiff: 'Price Difference',
         secBothDiff: 'Price & Quantity Difference',
+        thresholdShow: 'Show only',
     },
     zh: {
         title: 'BOM 比對工具',
@@ -857,6 +860,7 @@ const i18n = {
         secQtyDiff: '數量差異',
         secPriceDiff: '價格差異',
         secBothDiff: '價格與數量差異',
+        thresholdShow: '僅顯示',
     }
 };
 
@@ -872,7 +876,7 @@ function setLang(lang) {
         el.textContent = t(el.dataset.i18n);
     });
     // Re-render tables if results exist
-    if (comparisonResult) {
+    if (rawComparisonResult) {
         summaryResult = buildSummary(getFilteredComparison());
         renderStats();
         renderSummaryTable();
@@ -883,7 +887,7 @@ function setLang(lang) {
 // Project Filter
 // ========================================
 function getFilteredComparison() {
-    let rows = comparisonResult;
+    let rows = rawComparisonResult;
     if (selectedProject !== 'all') {
         rows = rows.filter(r => r.Project === selectedProject);
     }
@@ -900,7 +904,8 @@ function getFilteredComparison() {
             return !(absPct <= thresholdPct && absAmt <= thresholdAmt);
         });
     }
-    return rows;
+    // Re-merge products after filtering (threshold may make previously-different products identical)
+    return mergeIdenticalProducts(rows);
 }
 
 function applyFilters() {
@@ -924,7 +929,7 @@ function onThresholdChange() {
 }
 
 function populateProjectDropdown() {
-    const projects = [...new Set(comparisonResult.map(r => r.Project))].sort();
+    const projects = [...new Set(rawComparisonResult.map(r => r.Project))].sort();
     const sel = document.getElementById('projectSelect');
     sel.innerHTML = '';
     if (projects.length === 1) {
@@ -1211,12 +1216,13 @@ function runComparison() {
         try {
             const currentBOM = processBOM(currentData, 'Curr');
             const priorBOM = processBOM(priorData, 'Old');
-            comparisonResult = mergeIdenticalProducts(fullOuterJoin(currentBOM, priorBOM));
+            rawComparisonResult = fullOuterJoin(currentBOM, priorBOM);
+            comparisonResult = mergeIdenticalProducts(rawComparisonResult);
             populateProjectDropdown();
             applyFilters();
 
             document.getElementById('resultSection').classList.add('visible');
-            showStatus(t('done') + ' — ' + comparisonResult.length + ' changes found', 'success');
+            showStatus(t('done') + ' — ' + rawComparisonResult.length + ' changes found', 'success');
         } catch (err) {
             showStatus('Error: ' + err.message, 'error');
             console.error(err);
@@ -1692,10 +1698,11 @@ function downloadTemplate() {
 // Download Excel
 // ========================================
 function downloadExcel() {
-    if (!comparisonResult) return;
+    if (!rawComparisonResult) return;
 
-    // Always use original unfiltered data
-    const fullSummary = buildSummary(comparisonResult);
+    // Always use original unfiltered data (merged)
+    const fullMerged = mergeIdenticalProducts(rawComparisonResult);
+    const fullSummary = buildSummary(fullMerged);
     const { data, products } = fullSummary;
 
     // Sheet 1: Summary
@@ -1707,7 +1714,7 @@ function downloadExcel() {
     const wsSummary = XLSX.utils.json_to_sheet(sumData);
 
     // Sheet 2: Detail
-    const detailData = comparisonResult.map(r => {
+    const detailData = fullMerged.map(r => {
         let diffPricePct = null;
         if (r['Prior_Unit Cost'] !== null && r['Curr_Unit Cost'] !== null) {
             const prior = r['Prior_Unit Cost'] || 0;
