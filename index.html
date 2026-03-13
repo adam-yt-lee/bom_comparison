@@ -160,26 +160,36 @@
             color: var(--primary-accent);
         }
 
-        .header-actions {
+        /* 語言切換按鈕 (copied from style.css) */
+        .lang-toggle {
             display: flex;
-            gap: var(--space-xs);
+            background: white;
+            border-radius: 25px;
+            padding: 4px;
+            gap: 4px;
+            box-shadow: 0 4px 12px rgba(92, 171, 50, 0.12);
+            cursor: pointer;
+            flex-shrink: 0;
         }
 
-        .header-btn {
-            background: var(--bg-container);
+        .lang-btn {
+            background: transparent;
             border: none;
             color: var(--primary-dark);
             padding: 8px 16px;
-            border-radius: var(--radius-pill);
+            border-radius: 20px;
             cursor: pointer;
             font-weight: 600;
-            font-size: 13px;
-            box-shadow: var(--shadow-sm);
-            transition: var(--transition);
+            transition: all 0.3s ease;
+            font-size: 14px;
+            text-align: center;
         }
 
-        .header-btn:hover { background: var(--primary-pale); }
-        .header-btn.active { background: var(--primary-light); color: white; }
+        .lang-btn.active {
+            background: var(--primary-light);
+            color: white;
+            box-shadow: 0 2px 8px rgba(92, 171, 50, 0.2);
+        }
 
         /* ========================================
            6. 內容區塊
@@ -669,7 +679,7 @@
             .header p { font-size: 0.8em; }
             .content { padding: var(--space-md); }
             .upload-section { grid-template-columns: 1fr; }
-            .header-actions {
+            .lang-toggle {
                 position: absolute;
                 top: var(--space-sm);
                 right: var(--space-sm);
@@ -690,9 +700,9 @@
                     <h1 id="title">BOM Comparison Tool</h1>
                     <p id="subtitle">Upload Current & Prior BOM files to compare differences</p>
                 </div>
-                <div class="header-actions">
-                    <button class="header-btn active" onclick="setLang('en')">EN</button>
-                    <button class="header-btn" onclick="setLang('zh')">中</button>
+                <div class="lang-toggle" onclick="toggleLanguageGroup()">
+                    <button class="lang-btn" id="langZH">中</button>
+                    <button class="lang-btn active" id="langEN">EN</button>
                 </div>
             </div>
         </header>
@@ -866,10 +876,19 @@ const i18n = {
 
 function t(key) { return i18n[currentLang][key] || key; }
 
+function toggleLanguageGroup() {
+    const newLang = currentLang === 'zh' ? 'en' : 'zh';
+    setLang(newLang);
+    updateLangButtons();
+}
+
+function updateLangButtons() {
+    document.getElementById('langZH').classList.toggle('active', currentLang === 'zh');
+    document.getElementById('langEN').classList.toggle('active', currentLang === 'en');
+}
+
 function setLang(lang) {
     currentLang = lang;
-    document.querySelectorAll('.header-btn').forEach(b => b.classList.remove('active'));
-    event.target.classList.add('active');
     document.getElementById('title').textContent = t('title');
     document.getElementById('subtitle').textContent = t('subtitle');
     document.querySelectorAll('[data-i18n]').forEach(el => {
