@@ -160,26 +160,36 @@
             color: var(--primary-accent);
         }
 
-        .header-actions {
+        /* 語言切換按鈕 (copied from style.css) */
+        .lang-toggle {
             display: flex;
-            gap: var(--space-xs);
+            background: white;
+            border-radius: 25px;
+            padding: 4px;
+            gap: 4px;
+            box-shadow: 0 4px 12px rgba(92, 171, 50, 0.12);
+            cursor: pointer;
+            flex-shrink: 0;
         }
 
-        .header-btn {
-            background: var(--bg-container);
+        .lang-btn {
+            background: transparent;
             border: none;
             color: var(--primary-dark);
             padding: 8px 16px;
-            border-radius: var(--radius-pill);
+            border-radius: 20px;
             cursor: pointer;
             font-weight: 600;
-            font-size: 13px;
-            box-shadow: var(--shadow-sm);
-            transition: var(--transition);
+            transition: all 0.3s ease;
+            font-size: 14px;
+            text-align: center;
         }
 
-        .header-btn:hover { background: var(--primary-pale); }
-        .header-btn.active { background: var(--primary-light); color: white; }
+        .lang-btn.active {
+            background: var(--primary-light);
+            color: white;
+            box-shadow: 0 2px 8px rgba(92, 171, 50, 0.2);
+        }
 
         /* ========================================
            6. 內容區塊
@@ -669,7 +679,7 @@
             .header p { font-size: 0.8em; }
             .content { padding: var(--space-md); }
             .upload-section { grid-template-columns: 1fr; }
-            .header-actions {
+            .lang-toggle {
                 position: absolute;
                 top: var(--space-sm);
                 right: var(--space-sm);
@@ -690,9 +700,9 @@
                     <h1 id="title">BOM Comparison Tool</h1>
                     <p id="subtitle">Upload Current & Prior BOM files to compare differences</p>
                 </div>
-                <div class="header-actions">
-                    <button class="header-btn active" onclick="setLang('en')">EN</button>
-                    <button class="header-btn" onclick="setLang('zh')">中</button>
+                <div class="lang-toggle" onclick="toggleLanguageGroup()">
+                    <button class="lang-btn" id="langZH">中</button>
+                    <button class="lang-btn active" id="langEN">EN</button>
                 </div>
             </div>
         </header>
@@ -866,10 +876,19 @@ const i18n = {
 
 function t(key) { return i18n[currentLang][key] || key; }
 
+function toggleLanguageGroup() {
+    const newLang = currentLang === 'zh' ? 'en' : 'zh';
+    setLang(newLang);
+    updateLangButtons();
+}
+
+function updateLangButtons() {
+    document.getElementById('langZH').classList.toggle('active', currentLang === 'zh');
+    document.getElementById('langEN').classList.toggle('active', currentLang === 'en');
+}
+
 function setLang(lang) {
     currentLang = lang;
-    document.querySelectorAll('.header-btn').forEach(b => b.classList.remove('active'));
-    event.target.classList.add('active');
     document.getElementById('title').textContent = t('title');
     document.getElementById('subtitle').textContent = t('subtitle');
     document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -1512,6 +1531,23 @@ function renderDetailFromFilter() {
             stickyLeft += (stickyWidths[c] || 100);
         }
 
+        // Identify detail columns to hide on pivot collapse (non-merge, non-AmtDiff)
+        const detailHideCols = secCols.filter(c => !secMergeCols.includes(c) && c !== 'AmtDiff');
+
+        // Pre-compute AmtDiff sums for pivot groups
+        const pivotAmtSums = {};
+        if (pivotCol) {
+            for (let i = 0; i < secRows.length; i++) {
+                if (sp[pivotCol][i] > 1) {
+                    let sum = 0;
+                    for (let j = i; j < i + sp[pivotCol][i]; j++) {
+                        sum += (secRows[j].AmtDiff ?? 0);
+                    }
+                    pivotAmtSums[i] = sum;
+                }
+            }
+        }
+
         let h = '<div class="table-wrapper"><table class="data-table"><thead><tr>';
         for (const c of secCols) {
             if (c in stickyOffsets) {
@@ -1532,6 +1568,7 @@ function renderDetailFromFilter() {
             if (isGroupStart) buildSubTable._currentGid = gid;
             const rowGid = isGroupChild ? buildSubTable._currentGid : gid;
             h += `<tr${isGroupChild ? ` data-pivot-group="${rowGid}" class="pivot-child"` : ''}>`;
+            let pvtSummaryDone = false;
             for (const c of secCols) {
                 const isSticky = c in stickyOffsets;
                 const stickyStyle = isSticky ? `left:${stickyOffsets[c]}px;` : '';
@@ -1546,38 +1583,64 @@ function renderDetailFromFilter() {
                     } else {
                         h += `<td${rs} class="${stickyClass.trim()}" style="${stickyStyle}white-space:pre-line;vertical-align:top;">${val}</td>`;
                     }
-                } else if (c === 'Products') {
+                    continue;
+                }
+
+                // Insert hidden summary cell before first detail column (once per group-start row)
+                if (isGroupStart && !pvtSummaryDone) {
+                    h += `<td class="pvt-summary" data-pvt="${gid}" colspan="${detailHideCols.length}" style="display:none;text-align:center;color:var(--text-secondary);font-style:italic;"></td>`;
+                    pvtSummaryDone = true;
+                }
+
+                let cell = '';
+                if (c === 'Products') {
                     const val = String(row._affectedProducts ?? '').replace(/\n/g, '<br>');
-                    h += `<td class="${stickyClass.trim()}" style="${stickyStyle}white-space:pre-line;font-size:11px;color:var(--text-secondary);">${val}</td>`;
+                    cell = `<td class="${stickyClass.trim()}" style="${stickyStyle}white-space:pre-line;font-size:11px;color:var(--text-secondary);">${val}</td>`;
                 } else if (c === 'DiffPrice%') {
                     const v = row[c];
                     if (v === null || v === undefined) {
-                        h += `<td style="text-align:right;font-style:italic;color:var(--text-secondary);">null</td>`;
+                        cell = `<td style="text-align:right;font-style:italic;color:var(--text-secondary);">null</td>`;
                     } else if (!isFinite(v)) {
-                        h += `<td class="num-positive" style="text-align:right;">add</td>`;
+                        cell = `<td class="num-positive" style="text-align:right;">add</td>`;
                     } else if (v === -100) {
-                        h += `<td class="num-negative" style="text-align:right;">remove</td>`;
+                        cell = `<td class="num-negative" style="text-align:right;">remove</td>`;
                     } else {
-                        h += `<td class="${numClass(v)}" title="${fmtNum(v, 5)}%">${fmtNum(v)}%</td>`;
+                        cell = `<td class="${numClass(v)}" title="${fmtNum(v, 5)}%">${fmtNum(v)}%</td>`;
                     }
                 } else if (extraCols[c]) {
                     const v = row[extraCols[c]] ?? 0;
-                    h += `<td class="${numClass(v)}" title="${fmtNum(v, 5)}">${fmtNum(v)}</td>`;
+                    cell = `<td class="${numClass(v)}" title="${fmtNum(v, 5)}">${fmtNum(v)}</td>`;
                 } else if (secNumCols.has(c)) {
                     const v = row[c];
                     if (v === null && (c === 'Prior_Unit Cost' || c === 'Curr_Unit Cost')) {
-                        h += `<td style="text-align:right;font-style:italic;color:var(--text-secondary);">null</td>`;
+                        cell = `<td style="text-align:right;font-style:italic;color:var(--text-secondary);">null</td>`;
                     } else {
                         const nv = v ?? 0;
-                        h += `<td class="${numClass(c === 'AmtDiff' ? nv : 0)}" title="${fmtNum(nv, 5)}">${fmtNum(nv)}</td>`;
+                        cell = `<td class="${numClass(c === 'AmtDiff' ? nv : 0)}" title="${fmtNum(nv, 5)}">${fmtNum(nv)}</td>`;
                     }
                 } else {
                     if (isSticky) {
-                        h += `<td class="sticky-col" style="left:${stickyOffsets[c]}px;">${row[c] ?? ''}</td>`;
+                        cell = `<td class="sticky-col" style="left:${stickyOffsets[c]}px;">${row[c] ?? ''}</td>`;
                     } else {
-                        h += `<td>${row[c] ?? ''}</td>`;
+                        cell = `<td>${row[c] ?? ''}</td>`;
                     }
                 }
+
+                // Add pivot data attributes for group-start rows
+                if (isGroupStart && cell) {
+                    const pvtCls = c === 'AmtDiff' ? 'pvt-amtdiff' : 'pvt-detail';
+                    const pvtData = c === 'AmtDiff'
+                        ? ` data-pvt="${gid}" data-pvt-sum="${pivotAmtSums[i]}"`
+                        : ` data-pvt="${gid}"`;
+                    if (cell.includes('class="')) {
+                        cell = cell.replace('class="', `class="${pvtCls} `);
+                        cell = cell.replace('<td', `<td${pvtData}`);
+                    } else {
+                        cell = cell.replace('<td', `<td class="${pvtCls}"${pvtData}`);
+                    }
+                }
+
+                h += cell;
             }
             h += '</tr>';
         }
@@ -1666,18 +1729,43 @@ function togglePivot(td) {
     const gid = td.getAttribute('data-pivot-id');
     const origSpan = parseInt(td.getAttribute('data-pivot-span'));
     const isCollapsed = td.classList.contains('collapsed');
-    const childRows = td.closest('table').querySelectorAll(`tr[data-pivot-group="${gid}"]`);
+    const table = td.closest('table');
+    const childRows = table.querySelectorAll(`tr[data-pivot-group="${gid}"]`);
+    const parentRow = td.closest('tr');
+    const detailCells = parentRow.querySelectorAll(`.pvt-detail[data-pvt="${gid}"]`);
+    const summaryCell = parentRow.querySelector(`.pvt-summary[data-pvt="${gid}"]`);
+    const amtCell = parentRow.querySelector(`.pvt-amtdiff[data-pvt="${gid}"]`);
 
     if (isCollapsed) {
         // Expand
         td.classList.remove('collapsed');
         td.setAttribute('rowspan', origSpan);
         childRows.forEach(r => r.style.display = '');
+        // Restore detail cells
+        detailCells.forEach(c => c.style.display = '');
+        if (summaryCell) summaryCell.style.display = 'none';
+        if (amtCell && amtCell.hasAttribute('data-pvt-orig')) {
+            amtCell.innerHTML = amtCell.getAttribute('data-pvt-orig');
+            amtCell.className = amtCell.getAttribute('data-pvt-origclass') || '';
+        }
     } else {
         // Collapse
         td.classList.add('collapsed');
         td.setAttribute('rowspan', '1');
         childRows.forEach(r => r.style.display = 'none');
+        // Hide detail cells, show summary placeholder
+        detailCells.forEach(c => c.style.display = 'none');
+        if (summaryCell) summaryCell.style.display = '';
+        if (amtCell) {
+            // Save original content on first collapse
+            if (!amtCell.hasAttribute('data-pvt-orig')) {
+                amtCell.setAttribute('data-pvt-orig', amtCell.innerHTML);
+                amtCell.setAttribute('data-pvt-origclass', amtCell.className);
+            }
+            const sum = parseFloat(amtCell.getAttribute('data-pvt-sum'));
+            amtCell.className = `pvt-amtdiff ${numClass(sum)}`;
+            amtCell.innerHTML = `<span title="${fmtNum(sum, 5)}">${fmtNum(sum)}</span>`;
+        }
     }
 }
 
