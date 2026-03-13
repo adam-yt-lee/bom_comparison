@@ -1413,6 +1413,20 @@ function renderDetailFromFilter() {
         else bothRows.push(r);
     }
 
+    // When showing all projects, sort each section by Project first so merge columns group properly
+    if (showProject) {
+        const byProject = (a, b) => {
+            const p = String(a.Project ?? '').localeCompare(String(b.Project ?? ''));
+            if (p !== 0) return p;
+            const mg = String(a.MtlGroup ?? '').localeCompare(String(b.MtlGroup ?? ''));
+            if (mg !== 0) return mg;
+            return String(a.Material ?? '').localeCompare(String(b.Material ?? ''));
+        };
+        qtyRows.sort(byProject);
+        priceRows.sort(byProject);
+        bothRows.sort(byProject);
+    }
+
     // Helper: compute extra diff columns per category
     for (const r of qtyRows) {
         r._QtyDiff = (r['Curr_Ttl. Usage'] || 0) - (r['Prior_Ttl. Usage'] || 0);
@@ -1448,8 +1462,24 @@ function renderDetailFromFilter() {
         // Priority: use the deepest available merge column
         const pivotCol = secMergeCols.length > 0 ? secMergeCols[secMergeCols.length - 1] : null;
 
+        // Compute sticky left offsets for merge columns + Desc/Spec
+        const stickyWidths = { 'Project': 90, 'Product': 110, 'Products': 140, 'MtlGroup': 100, 'Material': 110, 'Desc/Spec': 160 };
+        const stickyCols = secCols.filter(c => secMergeCols.includes(c) || c === 'Material' || c === 'Desc/Spec');
+        const stickyOffsets = {};
+        let stickyLeft = 0;
+        for (const c of stickyCols) {
+            stickyOffsets[c] = stickyLeft;
+            stickyLeft += (stickyWidths[c] || 100);
+        }
+
         let h = '<div class="table-wrapper"><table class="data-table"><thead><tr>';
-        for (const c of secCols) h += `<th>${c}</th>`;
+        for (const c of secCols) {
+            if (c in stickyOffsets) {
+                h += `<th class="sticky-col" style="left:${stickyOffsets[c]}px;">${c}</th>`;
+            } else {
+                h += `<th>${c}</th>`;
+            }
+        }
         h += '</tr></thead><tbody>';
 
         for (let i = 0; i < secRows.length; i++) {
@@ -1463,19 +1493,22 @@ function renderDetailFromFilter() {
             const rowGid = isGroupChild ? buildSubTable._currentGid : gid;
             h += `<tr${isGroupChild ? ` data-pivot-group="${rowGid}" class="pivot-child"` : ''}>`;
             for (const c of secCols) {
+                const isSticky = c in stickyOffsets;
+                const stickyStyle = isSticky ? `left:${stickyOffsets[c]}px;` : '';
+                const stickyClass = isSticky ? ' sticky-col' : '';
                 if (secMergeCols.includes(c)) {
                     if (sp[c][i] === 0) continue;
                     const spanCount = sp[c][i];
                     const rs = spanCount > 1 ? ` rowspan="${spanCount}"` : '';
                     const val = String(row[c] ?? '').replace(/\n/g, '<br>');
                     if (c === pivotCol && spanCount > 1) {
-                        h += `<td${rs} class="pivot-toggle" style="white-space:pre-line;vertical-align:top;cursor:pointer;" data-pivot-id="${gid}" data-pivot-span="${spanCount}" onclick="togglePivot(this)"><span class="pivot-arrow">&#9660;</span> ${val}</td>`;
+                        h += `<td${rs} class="pivot-toggle${stickyClass}" style="${stickyStyle}white-space:pre-line;vertical-align:top;cursor:pointer;" data-pivot-id="${gid}" data-pivot-span="${spanCount}" onclick="togglePivot(this)"><span class="pivot-arrow">&#9660;</span> ${val}</td>`;
                     } else {
-                        h += `<td${rs} style="white-space:pre-line;vertical-align:top;">${val}</td>`;
+                        h += `<td${rs} class="${stickyClass.trim()}" style="${stickyStyle}white-space:pre-line;vertical-align:top;">${val}</td>`;
                     }
                 } else if (c === 'Products') {
                     const val = String(row._affectedProducts ?? '').replace(/\n/g, '<br>');
-                    h += `<td style="white-space:pre-line;font-size:11px;color:var(--text-secondary);">${val}</td>`;
+                    h += `<td class="${stickyClass.trim()}" style="${stickyStyle}white-space:pre-line;font-size:11px;color:var(--text-secondary);">${val}</td>`;
                 } else if (c === 'DiffPrice%') {
                     const v = row[c];
                     if (v === null || v === undefined) {
@@ -1499,7 +1532,11 @@ function renderDetailFromFilter() {
                         h += `<td class="${numClass(c === 'AmtDiff' ? nv : 0)}" title="${fmtNum(nv, 5)}">${fmtNum(nv)}</td>`;
                     }
                 } else {
-                    h += `<td>${row[c] ?? ''}</td>`;
+                    if (isSticky) {
+                        h += `<td class="sticky-col" style="left:${stickyOffsets[c]}px;">${row[c] ?? ''}</td>`;
+                    } else {
+                        h += `<td>${row[c] ?? ''}</td>`;
+                    }
                 }
             }
             h += '</tr>';
@@ -1511,7 +1548,7 @@ function renderDetailFromFilter() {
         for (const c of totalKeys) tots[c] = secRows.reduce((s, r) => s + (r[c] ?? 0), 0);
         const nonNum = secCols.filter(c => !secNumCols.has(c) && !extraCols[c] && c !== 'Products').length + (secCols.includes('Products') ? 1 : 0);
         h += '</tbody><tfoot><tr>';
-        h += `<td colspan="${nonNum}" style="text-align:left;">Total</td>`;
+        h += `<td class="sticky-col" colspan="${nonNum}" style="left:0;text-align:left;">Total</td>`;
         for (const c of secCols) {
             if (!secNumCols.has(c) && !extraCols[c]) continue;
             if (c === 'AmtDiff') {
@@ -1526,15 +1563,15 @@ function renderDetailFromFilter() {
     }
 
     // Define columns per section
-    // qtyRows: hide price cols, show QtyDiff
-    const qtyOnlyCols = cols.filter(c => c !== 'Prior_Unit Cost' && c !== 'Curr_Unit Cost' && c !== 'DiffPrice%');
+    // qtyRows: show Unit Cost, show QtyDiff
+    const qtyOnlyCols = [...cols];
     // Insert QtyDiff before AmtDiff
     const qtyIdx = qtyOnlyCols.indexOf('AmtDiff');
     if (qtyIdx >= 0) qtyOnlyCols.splice(qtyIdx, 0, 'QtyDiff');
     const qtyNumCols = new Set([...numCols, 'QtyDiff']);
 
-    // priceRows: hide qty cols, show PriceDiff
-    const priceOnlyCols = cols.filter(c => c !== 'Prior_Ttl. Usage' && c !== 'Curr_Ttl. Usage');
+    // priceRows: show Ttl. Usage, show PriceDiff
+    const priceOnlyCols = [...cols];
     const priceIdx = priceOnlyCols.indexOf('AmtDiff');
     if (priceIdx >= 0) priceOnlyCols.splice(priceIdx, 0, 'PriceDiff');
     const priceNumCols = new Set([...numCols, 'PriceDiff']);
