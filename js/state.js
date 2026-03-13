@@ -11,5 +11,5 @@ let summaryResult = null;
 let currentLang = 'zh'; //zh en
 let detailFilter = { product: null, mtlGroup: null };
 let selectedProject = 'all';
-let thresholdPct = 5; // %
-let thresholdAmt = 0.1; // $
+let thresholdPct = 3; // %
+let thresholdAmt = 0.01; // $
