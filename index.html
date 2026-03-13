@@ -390,15 +390,10 @@
 
         .data-table {
             width: 100%;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
             font-size: 13px;
             white-space: nowrap;
-        }
-
-        .data-table thead {
-            position: sticky;
-            top: 0;
-            z-index: 1;
         }
 
         .data-table th {
@@ -408,6 +403,9 @@
             text-align: left;
             font-weight: 600;
             font-size: 12px;
+            position: sticky;
+            top: 0;
+            z-index: 2;
         }
 
         .data-table td {
@@ -440,7 +438,7 @@
             background: var(--primary-pale);
             position: sticky;
             bottom: 0;
-            z-index: 1;
+            z-index: 2;
         }
 
         /* Sticky left columns for summary pivot table */
@@ -458,11 +456,11 @@
             background: var(--primary-pale);
         }
         .data-table thead .sticky-col {
-            z-index: 3;
+            z-index: 4;
             background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
         }
         .data-table tfoot .sticky-col {
-            z-index: 2;
+            z-index: 3;
             background: var(--primary-pale);
         }
 
@@ -1672,7 +1670,7 @@ function renderSummaryTable() {
 
     let html = '<table class="data-table"><thead><tr>';
     for (let ci = 0; ci < baseCols.length; ci++) {
-        html += `<th class="sticky-col" style="left:${stickyOffsets[ci]}px;">${baseCols[ci]}</th>`;
+        html += `<th class="sticky-col" style="left:${stickyOffsets[ci]}px;min-width:${colWidths[ci]}px;max-width:${colWidths[ci]}px;">${baseCols[ci]}</th>`;
     }
     for (const p of products) html += `<th style="white-space:pre-line;">${p}</th>`;
     html += '</tr></thead><tbody>';
@@ -1690,14 +1688,15 @@ function renderSummaryTable() {
             const spanCount = projectSpans[i];
             const rs = spanCount > 1 ? ` rowspan="${spanCount}"` : '';
             if (spanCount > 1) {
-                html += `<td class="sticky-col pivot-toggle" style="left:${stickyOffsets[0]}px;vertical-align:top;cursor:pointer;" data-pivot-id="${gid}" data-pivot-span="${spanCount}" onclick="togglePivot(this)"${rs}><span class="pivot-arrow">&#9660;</span> ${row.Project ?? ''}</td>`;
+                html += `<td class="sticky-col pivot-toggle" style="left:${stickyOffsets[0]}px;min-width:${colWidths[0]}px;max-width:${colWidths[0]}px;vertical-align:top;cursor:pointer;" data-pivot-id="${gid}" data-pivot-span="${spanCount}" onclick="togglePivot(this)"${rs}><span class="pivot-arrow">&#9660;</span> ${row.Project ?? ''}</td>`;
             } else {
-                html += `<td class="sticky-col" style="left:${stickyOffsets[0]}px;vertical-align:top;"${rs}>${row.Project ?? ''}</td>`;
+                html += `<td class="sticky-col" style="left:${stickyOffsets[0]}px;min-width:${colWidths[0]}px;max-width:${colWidths[0]}px;vertical-align:top;"${rs}>${row.Project ?? ''}</td>`;
             }
         }
         const escaped_mg = String(row.MtlGroup ?? '').replace(/'/g, "\\'");
-        const mgLeft = stickyOffsets[showProject ? 1 : 0];
-        html += `<td class="sticky-col summary-clickable" style="left:${mgLeft}px;" onclick="drillDownMtlGroup('${escaped_mg}')">${row.MtlGroup ?? ''}</td>`;
+        const mgIdx = showProject ? 1 : 0;
+        const mgLeft = stickyOffsets[mgIdx];
+        html += `<td class="sticky-col summary-clickable" style="left:${mgLeft}px;min-width:${colWidths[mgIdx]}px;max-width:${colWidths[mgIdx]}px;" onclick="drillDownMtlGroup('${escaped_mg}')">${row.MtlGroup ?? ''}</td>`;
         for (const p of products) {
             const v = row[p] ?? 0;
             const escaped_p = String(p).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
