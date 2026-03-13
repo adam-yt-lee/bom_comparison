@@ -4,6 +4,9 @@
 document.addEventListener('DOMContentLoaded', () => {
     setLang(currentLang);
     updateLangButtons();
+    // Sync HTML inputs from state.js defaults
+    document.getElementById('thresholdPct').value = thresholdPct;
+    document.getElementById('thresholdAmt').value = thresholdAmt;
 });
 
 // ========================================
