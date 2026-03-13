@@ -1,4 +1,12 @@
 // ========================================
+// Init
+// ========================================
+document.addEventListener('DOMContentLoaded', () => {
+    setLang(currentLang);
+    updateLangButtons();
+});
+
+// ========================================
 // Status
 // ========================================
 function showStatus(msg, type) {
