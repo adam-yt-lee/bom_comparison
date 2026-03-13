@@ -1,5 +1,0 @@
-let
-    來源 = Table.Pivot(BOM_Comparison, List.Sort(List.Distinct(BOM_Comparison[Product])), "Product", "AmtDiff"),
-    已排序資料列 = Table.Sort(來源,{{"MtlGroup", Order.Ascending}, {"Material", Order.Ascending}})
-in
-    已排序資料列

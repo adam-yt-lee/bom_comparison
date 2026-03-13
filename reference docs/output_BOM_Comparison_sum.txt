@@ -1,7 +1,0 @@
-let
-    來源 = BOM_Comparison,
-    已群組資料列 = Table.Group(來源, {"Project", "Product", "MtlGroup"}, {{"AmtDiff", each List.Sum([AmtDiff]), type number}}),
-    樞紐 = Table.Pivot(已群組資料列, List.Sort(List.Distinct(已群組資料列[Product])), "Product", "AmtDiff"),
-    已排序資料列 = Table.Sort(樞紐,{{"MtlGroup", Order.Ascending}})
-in
-    已排序資料列
